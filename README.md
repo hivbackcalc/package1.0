@@ -16,4 +16,6 @@ install.packages('HIVBackCalc_1.02.tar.gz', repos=NULL, type='source')
 To view the vignette:
 
 library(HIVBackCalc)
+
 vignette('Introduction', package='HIVBackCalc')
+
