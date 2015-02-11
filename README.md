@@ -12,3 +12,8 @@ install.packages('HIVBackCalc_1.02.zip', repos=NULL)
 On at least Mac OS X, you may need to include the argument type='source', e.g.
 
 install.packages('HIVBackCalc_1.02.tar.gz', repos=NULL, type='source')
+
+To view the vignette:
+
+library(HIVBackCalc)
+vignette('Introduction', package='HIVBackCalc')
