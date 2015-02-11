@@ -1,0 +1,204 @@
+---
+title: "Introduction to HIVBackCalc"
+author: "Jeanette Birnbaum"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to HIVBackCalc}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\usepackage[utf8]{inputenc}
+---
+
+HIVBackCalc estimates undiagnosed HIV cases based on testing history data from diagnosed persons reporting on when they last had a negative HIV test. HIV diagnoses observed in a given year are the convolution of incidence in prior years and the probability of being diagnosed in that year conditional on infection in a prior year. This package may be used to backcalculate HIV incidence...
+
+The vignette will guide you through a full analysis using a simulated dataset that reflects similar population-level characteristics to the data described in the manuscript.
+
+```{r setup, echo=FALSE, message=FALSE}
+#setwd('/Users/jeanette/Dropbox/School/PhD/HIV_WA/public/package1.0/HIVBackCalc')
+
+# Setup
+#load('data/KCsim.RData')
+library(HIVBackCalc)
+#source('R/model.R')
+#source('R/tid.R')
+#source('R/results.R')
+#library(reshape2)
+#library(ggplot2)
+#library(scales)
+#library(Hmisc)
+#library(plyr)
+```
+
+## Testing History Data
+
+### Overview
+
+The example data embedded in the package approximate testing histories collected from HIV diagnoses among MSM in King County, Washington reported in 2006-2012. The following code will load the data into a data frame called `KCsim` and display the first 6 rows.
+
+```{r, echo=TRUE}
+data(KCsim)
+```
+
+```{r, echo=TRUE, eval=FALSE}
+head(KCsim)
+```
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(head(KCsim))
+```
+
+The essential variables are 
+
+1. Age at diagnosis (hdx_age)
+1. Year of diagnosis (yearDx)
+1. Time of diagnosis (timeDx)
+    * May be identical to or more granular than year. In the example data, diagnoses are reported by quarter-years, specified using decimals: 0.00 = Q1 (Jan-Mar), 0.25 = Q2, etc.
+1. Testing history (everHadNegTest)
+    * Response to "Have you ever had a negative HIV test?"
+1. Time from last negative test to diagnosis (infPeriod)
+    * If everHadNegTest=FALSE, imputed as 18 years
+
+The remainder of the variables are optional descriptive variables by which the data can be stratified for subgroup analyses.
+
+## Specify Diagnosed Interval Length
+
+The intervals of the `timeDx` variable determine the finest interval by which we may estimate incidence and undiagnosed counts. In the example data, this interval is a quarter year (0.25). We will store this in an object to use throughout:
+
+```{r, echo=TRUE, results='asis'}
+diagInterval = 0.25
+```
+
+While using the finest possible interval maximizes the use of information, note that this interval also defines the unit of analysis for "undiagnosed HIV." Results will be estimated as undiagnosed counts per quarter. By using quarters, we imply that a diagnosis made within 3 months of infection is acceptable and contributes no "undiagnosed" time. If we used a longer interval, we would relax the meaning of "undiagnosed." However, this functionality is not yet directly available. It may be indirectly achieved by re-formatting `timeDx`.
+
+## Estimating the Time from Infection to Diagnosis (TID)
+
+The testing histories provide bounds for the possible infection period or "infPeriod" within which infection must have occurred. The next step is to translate these infection periods into a probability distribution for the time from infection to diagnosis (TID). This will require making some assumption regarding when infection occurred within the possible infection period.
+
+HIVBackCalc accommodates two "cases" for the TID that make different assumptions:
+
+**Base Case** - The probability of infection is uniform across the infection period
+
+**Upper Bound** - Infection occurred instantaneously after the last negative test. This is an extreme assumption that represents the maximum possible amount of time people could have been infected but undiagnosed.
+
+The `estimateTID` function will return the probability and cumulative density functions for each of these cases. 
+
+```{r, echo=TRUE, results='asis'}
+TIDs <- estimateTID(KCsim$infPeriod, intLength=diagInterval)
+```
+
+We can examine the TID for each case by plotting the probability and survivor functions. 
+
+```{r, echo=TRUE, results='asis', fig.height=5, fig.width=6.5}
+plot(TIDs, intLength=diagInterval, 
+     cases = c('Base Case', 'Upper Bound'))
+```
+
+The spike in density at 18 years reflects an assumption that has been applied to `KCsim$infPeriod`, the infection period variable, for those cases who stated they had never had a prior negative test before their diagnosis (`KCsim$everHadNegTest=FALSE). These cases were given a date of last negative test that was the minimum of 18 years prior to diagnosis or age-16.
+
+We can also evaluate the TID at particular time points of interest. These time points should be specified in years and represent the left bound of the discrete time between infection and diagnosis.
+
+```{r, echo=TRUE, eval=FALSE}
+summary(TIDs, intLength=diagInterval,
+        cases = c('Base Case', 'Upper Bound'),       
+        times =c(0, 0.25, 1, 5, 10, 18))
+```
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(summary(TIDs, intLength=diagInterval,
+                     cases = c('Base Case', 'Upper Bound'),
+                     times =c(0, 0.25, 1, 5, 10, 18)))
+```
+
+## Backcalculation of Incidence
+
+To backcalculate incidence, we must define a vector of diagnosis counts per interval. By default, this vector contains 100 empty intervals prior to the first interval in which we observe diagnoses. These empty intervals will indicate to the model how far back to project incidence. 
+
+```{r, echo=TRUE, results='asis'}
+diagCounts = tabulateDiagnoses(KCsim, intLength=diagInterval)
+```
+
+The backcalculation uses the same diagnosis counts but different TIDs to project incidence for each of the cases.
+
+```{r, echo=TRUE, results='asis', cache=TRUE}
+incidenceBase = estimateIncidence(y=diagCounts,
+                                  pid=TIDs[['base_case']]$pdffxn,
+                                  gamma=0.1,
+                                  verbose=FALSE)
+incidenceUpper = estimateIncidence(y=diagCounts,
+                                  pid=TIDs[['upper_bound']]$pdffxn,
+                                  gamma=0.1,
+                                  verbose=FALSE)
+```
+
+We can plot the backcalculated estimates over time, overlayed by the diagnosis counts in red.
+
+```{r, echo=TRUE, fig.show="hold", fig.width=5, fig.height=5, out.width="325px"}
+plot(incidenceBase, case='Base Case')
+plot(incidenceUpper, case='Upper Bound')
+```
+
+While the TIDs for the two cases are quite distinct, the incidence estimates are fairly similar. Remember that in the upper bound case, people have been undiagnosed for longer. This means that observed diagnoses reflect more cases whose time of incidence was further in the past. This effect of the TID on incidence is spread out over many years. Consequently, even if the base case and upper bound TIDs are fairly different, the backcalculation may not estimate large differences between the base case and upper bound incidence estimates in recent years.
+
+## Estimation of Undiagnosed Counts
+
+Estimating undiagnosed counts requires applying the TID to the incidence estimates to determine how many of those who were ultimately diagnosed were undiagnosed in a given interval.
+
+```{r, echo=TRUE, eval=TRUE}
+# Base Case
+undiagnosedBase <- estimateUndiagnosed(incidenceBase)
+# Upper Bound
+undiagnosedUpper <- estimateUndiagnosed(incidenceUpper)
+```
+
+<!--
+You can enable figure captions by `fig_caption: yes` in YAML:
+
+    output:
+      rmarkdown::html_vignette:
+        fig_caption: yes
+
+Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+-->
+
+## Examining Results
+
+The results of the multiple cases can be combined and more easily contrasted by first creating a "results" object using `combineResults()`. Note that the names of the upper-level list below, e.g. "Base Case" and "Upper Bound", will be used to label the respective results in the results plots and tables that follow.
+
+
+```{r, echo=TRUE, eval=TRUE}
+results <- combineResults(list(`Base Case`=list(incidenceBase,
+                                            undiagnosedBase),
+                             `Upper Bound`=list(incidenceUpper,
+                                              undiagnosedUpper)))
+```
+
+The estimates are summarized over all time periods in the `results$resultsSummary` element.
+
+```{r, echo=TRUE, eval=FALSE}
+results$resultsSummary
+```
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(results$resultsSummary)
+```
+
+
+Plotting the results object will panel the incidence and undiagnosed estimates with the cases overlayed:
+
+```{r, echo=TRUE, eval=TRUE, fig.width=6, fig.height=5, fig.align='center'}
+plot(results)
+```
+
+<!--
+You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(head(mtcars, 10))
+```
+
+Also a quote using `>`:
+
+> "He who gives up [code] safety for [code] speed deserves neither."
+([via](https://twitter.com/hadleywickham/status/504368538874703872))
+
+-->

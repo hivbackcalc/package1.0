@@ -1,0 +1,14 @@
+Package: HIVBackCalc
+Type: Package
+Title: Does back calculation based on HIV diagnosis and testing
+        history data
+Version: 1.02
+Date: 2013-05-21
+Author: Ian Fellows & Jeanette Birnbaum
+Maintainer: Jeanette Birnbaum <kurian@uw.edu>
+Description: Does back calculation based on HIV diagnosis data, and testing history. Version 1.02 is a beta public release.
+Depends: rootSolve, ggplot2, plyr
+License: MIT
+Packaged: 2013-05-23 00:09:38 UTC; ianfellows
+Suggests: knitr
+VignetteBuilder: knitr
