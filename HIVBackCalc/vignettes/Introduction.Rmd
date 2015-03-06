@@ -14,7 +14,7 @@ HIVBackCalc estimates undiagnosed HIV cases based on testing history data from d
 The vignette will guide you through a full analysis using a simulated dataset that reflects similar population-level characteristics to the data described in the manuscript.
 
 ```{r setup, echo=FALSE, message=FALSE}
-#setwd('/Users/jeanette/Dropbox/School/PhD/HIV_WA/public/package1.0/HIVBackCalc')
+#setwd('F:/GitHub/package1.02/HIVBackCalc')
 
 # Setup
 #load('data/KCsim.RData')
@@ -47,40 +47,46 @@ head(KCsim)
 knitr::kable(head(KCsim))
 ```
 
-The essential variables are 
+The necessary variables are: 
 
 1. Age at diagnosis (hdx_age)
+    * In the simulated data set, hdx_age is reported in 5 yr intervals.
 1. Year of diagnosis (yearDx)
 1. Time of diagnosis (timeDx)
-    * May be identical to or more granular than year. In the example data, diagnoses are reported by quarter-years, specified using decimals: 0.00 = Q1 (Jan-Mar), 0.25 = Q2, etc.
+    * Defined by the reporting time unit. In the example data, diagnoses are reported quarterly, specified using decimals: 0.00 = Q1 (Jan-Mar), 0.25 = Q2, etc.  So someone diagnosed in the third quarter of 2008 would have timeDX = 2008.75.
 1. Testing history (everHadNegTest)
     * Response to "Have you ever had a negative HIV test?"
+    * Three possible values:  TRUE, FALSE and <NA>
 1. Time from last negative test to diagnosis (infPeriod)
-    * If everHadNegTest=FALSE, imputed as 18 years
+    * If everHadNegTest=FALSE, imputed as the smaller of 18 years, or hdx_age-16.
 
 The remainder of the variables are optional descriptive variables by which the data can be stratified for subgroup analyses.
 
 ## Specify Diagnosed Interval Length
 
-The intervals of the `timeDx` variable determine the finest interval by which we may estimate incidence and undiagnosed counts. In the example data, this interval is a quarter year (0.25). We will store this in an object to use throughout:
+The intervals of the `timeDx` variable represent the discrete time unit for reporting cases, and determine the finest interval by which we may estimate incidence and undiagnosed counts. In the example data, this interval is a quarter year (0.25). We will store this in an object to use throughout:
+
 
 ```{r, echo=TRUE, results='asis'}
 diagInterval = 0.25
 ```
 
-While using the finest possible interval maximizes the use of information, note that this interval also defines the unit of analysis for "undiagnosed HIV." Results will be estimated as undiagnosed counts per quarter. By using quarters, we imply that a diagnosis made within 3 months of infection is acceptable and contributes no "undiagnosed" time. If we used a longer interval, we would relax the meaning of "undiagnosed." However, this functionality is not yet directly available. It may be indirectly achieved by re-formatting `timeDx`.
+This interval maximizes the use of reported information, and defines the unit of analysis for "undiagnosed HIV." Results will be estimated as undiagnosed counts per quarter. Using quarterly reports implies that a diagnosis made within 3 months of infection is acceptable and contributes no "undiagnosed" time. If we used a longer interval, by re-formatting `timeDx`, this would modify the meaning of "undiagnosed" accordingly.
 
 ## Estimating the Time from Infection to Diagnosis (TID)
 
-The testing histories provide bounds for the possible infection period or "infPeriod" within which infection must have occurred. The next step is to translate these infection periods into a probability distribution for the time from infection to diagnosis (TID). This will require making some assumption regarding when infection occurred within the possible infection period.
+The testing history data provides bounds for the possible infection period or "infPeriod" within which infection must have occurred, for all diagnosed cases that have a prior negative test.  If a case is diagnosed on their first test, there will be no prior negative test (`KCsim$everHadNegTest=FALSE`), and we need an alternative approach to defining the possible infection period.  In the paper, these cases were assigned an infperiod that was the minimum of 18 years or age-16.
 
-HIVBackCalc accommodates two "cases" for the TID that make different assumptions:
+The next step is to aggregate these individual infection periods and use them to define a population level probability distribution for the time from infection to diagnosis (TID). This will require making some assumption regarding when infection occurred within the possible infection period.
 
-**Base Case** - The probability of infection is uniform across the infection period
+HIVBackCalc implements the assumptions that define the two "cases" for the TID examined in the paper:
 
-**Upper Bound** - Infection occurred instantaneously after the last negative test. This is an extreme assumption that represents the maximum possible amount of time people could have been infected but undiagnosed.
+**Base Case** - The probability of acquiring infection is uniformly distributed across the infection period.  This assumes testing is not driven by risk exposure, so is likely to be conservative (i.e., overestimate the time spent undiagnosed).
+
+**Upper Bound** - All infections occur immediately after the last negative test. This is an extremely conservative assumption that represents the maximum possible amount of time people could have been infected but undiagnosed.
 
 The `estimateTID` function will return the probability and cumulative density functions for each of these cases. 
+ 
 
 ```{r, echo=TRUE, results='asis'}
 TIDs <- estimateTID(KCsim$infPeriod, intLength=diagInterval)
@@ -93,9 +99,9 @@ plot(TIDs, intLength=diagInterval,
      cases = c('Base Case', 'Upper Bound'))
 ```
 
-The spike in density at 18 years reflects an assumption that has been applied to `KCsim$infPeriod`, the infection period variable, for those cases who stated they had never had a prior negative test before their diagnosis (`KCsim$everHadNegTest=FALSE). These cases were given a date of last negative test that was the minimum of 18 years prior to diagnosis or age-16.
+The spike in density at 18 years for the **Upper Bound** TID reflects the assumption we made for the cases that were diagnosed at their first test.
 
-We can also evaluate the TID at particular time points of interest. These time points should be specified in years and represent the left bound of the discrete time between infection and diagnosis.
+We can evaluate the TID at particular time points of interest using the `summary` function. The time points should be specified in years and represent the left bound of the discrete time between infection and diagnosis.
 
 ```{r, echo=TRUE, eval=FALSE}
 summary(TIDs, intLength=diagInterval,
@@ -137,7 +143,7 @@ plot(incidenceBase, case='Base Case')
 plot(incidenceUpper, case='Upper Bound')
 ```
 
-While the TIDs for the two cases are quite distinct, the incidence estimates are fairly similar. Remember that in the upper bound case, people have been undiagnosed for longer. This means that observed diagnoses reflect more cases whose time of incidence was further in the past. This effect of the TID on incidence is spread out over many years. Consequently, even if the base case and upper bound TIDs are fairly different, the backcalculation may not estimate large differences between the base case and upper bound incidence estimates in recent years.
+While the TIDs for the two cases are quite distinct, the incidence estimates are almost identical. This is because the diagnosis counts are relatively stable, and the TIDs are constant, not year-specific (this assumption was tested in the paper).  Together, this implies that incidence is approximately equal to diagnosed cases, and both TID cases will conform to this incidence estimate.  The impact of the different TID assumptions is just to recalibrate the fraction of prevalent infections that are diagnosed at any point in time.  People have been undiagnosed for longer in the upper bound case, so the observed diagnoses in this case are estimated to have a greater fraction of persons whose time of infection was further in the past.  This in turn will generate a higher fraction of recently infected persons who are undiagnosed, as we see next.
 
 ## Estimation of Undiagnosed Counts
 
@@ -150,19 +156,11 @@ undiagnosedBase <- estimateUndiagnosed(incidenceBase)
 undiagnosedUpper <- estimateUndiagnosed(incidenceUpper)
 ```
 
-<!--
-You can enable figure captions by `fig_caption: yes` in YAML:
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
-
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
--->
 
 ## Examining Results
 
-The results of the multiple cases can be combined and more easily contrasted by first creating a "results" object using `combineResults()`. Note that the names of the upper-level list below, e.g. "Base Case" and "Upper Bound", will be used to label the respective results in the results plots and tables that follow.
+The results of the two cases can be combined and contrasted by creating a "results" object using `combineResults()`. Note that the names of the upper-level list, e.g. "Base Case" and "Upper Bound", will be used to label the respective results in the results plots and tables that follow.
 
 
 ```{r, echo=TRUE, eval=TRUE}
@@ -188,17 +186,3 @@ Plotting the results object will panel the incidence and undiagnosed estimates w
 ```{r, echo=TRUE, eval=TRUE, fig.width=6, fig.height=5, fig.align='center'}
 plot(results)
 ```
-
-<!--
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
-
--->
