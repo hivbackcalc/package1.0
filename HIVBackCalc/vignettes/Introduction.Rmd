@@ -186,3 +186,35 @@ Plotting the results object will panel the incidence and undiagnosed estimates w
 ```{r, echo=TRUE, eval=TRUE, fig.width=6, fig.height=5, fig.align='center'}
 plot(results)
 ```
+
+
+## Direct Calculation Assuming Constant Incidence
+
+This simpler method may be used if both HIV incidence and the TID probability distribution are constant over time.
+
+We first define incidence as the average of observed diagnoses (per quarter):
+
+```{r, echo=TRUE}
+constantIncidence <- mean(diagCounts, na.rm=TRUE)
+```
+
+We can then apply the TID to estimate undiaagnosed counts assuming this constant incidence:
+
+```{r, echo=TRUE, eval=TRUE}
+# Base Case
+undiagnosedConstBase <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriod,
+                                                 case='base_case',
+                                                 intLength=diagInterval,
+                                                 incidence=constantIncidence)
+
+undiagnosedConstBase
+
+# Upper Bound
+undiagnosedConstUpper <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriod,
+                                                  case='upper_bound',
+                                                  intLength=diagInterval,
+                                                  incidence=constantIncidence)
+
+undiagnosedConstUpper
+
+```

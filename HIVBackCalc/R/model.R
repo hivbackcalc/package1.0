@@ -170,3 +170,47 @@ estimateUndiagnosed <- function(mod,nExt=500){
 
 
 
+#' Estimates the number of undiagnosed in the population, constant incidence
+#'  
+#' Uses constant incidence assumption and the TID to estimate undiagnosed 
+#' counts per interval
+#'  
+#' @param infPeriod A vector of continuous times from last HIV test to diagnosis
+#'          for a population
+#' @param case One of "base_case" or "upper_bound", indicating the 
+#'          assumption to apply for when infection occurred within infPeriod
+#' @param intLength A single number indicating the length in years of discrete 
+#'          time intervals by which HIV diagnoses are recorded. The default of 
+#'          0.25 represents a quarter-year.
+#' @param incidence Number of new infections per unit intLength. Assumed
+#'          to be constant over time
+#' @param numSteps Number of discrete time steps used to evaluate the integral
+#'
+#' @return Scalar representing the number of undiagnosed cases at any
+#'          time point. The precise interval length for this estimate 
+#'          will be max(infPeriod)/dt
+#'          
+estimateUndiagnosedConst <- function(infPeriod,case,
+                                     intLength,incidence,
+                                     numSteps=10000) {
+
+    # Define maximum time and discrete time steps
+    maxTime <- max(infPeriod, na.rm=TRUE)
+    times <- seq(from=0, to=maxTime, length.out=numSteps)
+
+    # Get continuous survivor function
+    Sx <- TID_cdfContinuous(infPeriod,case,intLength,survivor=TRUE)
+
+    # Evaluate the integral
+    integral <- sum(sapply(times, function(t) Sx(t) ))
+
+    # Convert time units appropriately
+    dt_in_years <- maxTime/numSteps
+    incidence_yearly <- incidence/intLength
+
+    # Undiagnosed
+    undiag <- incidence_yearly*integral*dt_in_years
+
+    return(undiag)
+
+}

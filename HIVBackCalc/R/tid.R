@@ -1,5 +1,5 @@
 
-#' Estimates discrete PDF of time from infection to diagnosis.
+#' Estimates continuous CDF of time from infection to diagnosis.
 #'  
 #' to HIV diagnosis, to estimate a probability distribution of time from HIV
 #' infection to HIV diagnosis (TID). Two "cases" of assumptions are possible:
@@ -14,10 +14,12 @@
 #' @param intLength A single number indicating the length in years of discrete 
 #'          time intervals by which HIV diagnoses are recorded. The default of 
 #'          0.25 represents a quarter-year.
+#' @param survivor Logical indicating whether to return S(x)=1-F(x) instead of 
+#'          F(x), the cdf
 #'  
 #' @return A function that takes integer arguments 0 and higher. Will return 0 
 #'          for integers greater than floor(max(infPeriod/intLength)) + 1
-TID_pdf <- function(infPeriod,case,intLength) {
+TID_cdfContinuous <- function(infPeriod,case,intLength,survivor=FALSE) {
 
     # Remove 0 or missing infPeriods 
     infPeriod <- sort(infPeriod[!is.na(infPeriod) & infPeriod > 0]) 
@@ -58,27 +60,60 @@ TID_pdf <- function(infPeriod,case,intLength) {
                   return(0)
                 cs[uind]
               }
-              
-    })
+        })
 
-  # Use the CDF to define the discrete probability of infection 
-  # during interval i to i+1
-  pidCalc <- function(i){
+    if (survivor) {
+        Sx <- function(u) { 1-qi(u) }
+        return(Sx)
+    } else return(qi)
+}
+
+#' Estimates discrete PDF of time from infection to diagnosis.
+#'  
+#' to HIV diagnosis, to estimate a probability distribution of time from HIV
+#' infection to HIV diagnosis (TID). Two "cases" of assumptions are possible:
+#' a "base case" that assumes the probability of infection is uniformly 
+#' distributed between the last negative test and diagnosis, and an "upper bound"
+#' that assumes infection occurred instantaneously after the negative test.
+#'  
+#' @param infPeriod A vector of continuous times from last HIV test to diagnosis
+#'          for a population
+#' @param case One of "base_case" or "upper_bound", indicating the 
+#'          assumption to apply for when infection occurred within infPeriod
+#' @param intLength A single number indicating the length in years of discrete 
+#'          time intervals by which HIV diagnoses are recorded. The default of 
+#'          0.25 represents a quarter-year.
+#'  
+#' @return A function that takes integer arguments 0 and higher. Will return 0 
+#'          for integers greater than floor(max(infPeriod/intLength)) + 1
+TID_pdf <- function(infPeriod,case,intLength) {
+
+    # Remove 0 or missing infPeriods 
+    infPeriod <- sort(infPeriod[!is.na(infPeriod) & infPeriod > 0]) 
+    n <- length(infPeriod)
+
+    # Define the CDF of time from infection to diagnosis in 
+    # the function 'qi'
+    qi <- TID_cdfContinuous(infPeriod,case,intLength)
+
+    # Use the CDF to define the discrete probability of infection 
+    # during interval i to i+1
+    pidCalc <- function(i){
     sapply(i,function(ii){
       qi((ii+1)*intLength) - qi(ii*intLength)
     })
-  }
+    }
 
-  # Calculate the discrete PDF over the m observed intervals, and set
-  # probability to zero for longer intervals
-  m <- max(infPeriod/intLength) + 1
-  pidProbs <- pidCalc(0:m)
-  pid <- function(i){
+    # Calculate the discrete PDF over the m observed intervals, and set
+    # probability to zero for longer intervals
+    m <- max(infPeriod/intLength) + 1
+    pidProbs <- pidCalc(0:m)
+    pid <- function(i){
     ifelse(i>m,0,pidProbs[i+1])
-  }
+    }
 
-  # Return the PDF function
-  return(pid)
+    # Return the PDF function
+    return(pid)
 }
 
 #' Creates a TID (time from infection to diagnosis) object
