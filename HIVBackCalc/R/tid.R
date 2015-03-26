@@ -1,16 +1,20 @@
 
-#' Estimates continuous CDF of time from infection to diagnosis.
+#' Estimates the continuous CDF of time from infection to diagnosis (TID).
 #'  
-#' to HIV diagnosis, to estimate a probability distribution of time from HIV
-#' infection to HIV diagnosis (TID). Two "cases" of assumptions are possible:
+#' Uses the window of possible infection (infPeriod) and an assumption 
+#' about the distribution of the infection hazard in this interval
+#' to estimate the the CDF of time from infection to diagnosis (TID).
+#'
+#' Two infection hazard assumptions are compared in the paper:
 #' a "base case" that assumes the probability of infection is uniformly 
-#' distributed between the last negative test and diagnosis, and an "upper bound"
-#' that assumes infection occurred instantaneously after the negative test.
+#' distributed in the inter-test interval, and 
+#' an "upper bound" that assumes infection occurred immediately after
+#' the last negative test.
 #'  
-#' @param infPeriod A vector of continuous times from last HIV test to diagnosis
-#'          for a population
-#' @param case One of "base_case" or "upper_bound", indicating the 
-#'          assumption to apply for when infection occurred within infPeriod
+#' @param infPeriod A vector containing the continuous time from last 
+#'          HIV test to diagnosis for each member of the population
+#' @param case One of "base_case" or "upper_bound", indicating the distributional
+#'          assumption used for the hazard of infection within the infPeriod
 #' @param intLength A single number indicating the length in years of discrete 
 #'          time intervals by which HIV diagnoses are recorded. The default of 
 #'          0.25 represents a quarter-year.
@@ -68,13 +72,11 @@ TID_cdfContinuous <- function(infPeriod,case,intLength,survivor=FALSE) {
     } else return(qi)
 }
 
-#' Estimates discrete PDF of time from infection to diagnosis.
+#' Evaluates the discrete PDF of time from infection to diagnosis in reporting intervals.
 #'  
-#' to HIV diagnosis, to estimate a probability distribution of time from HIV
-#' infection to HIV diagnosis (TID). Two "cases" of assumptions are possible:
-#' a "base case" that assumes the probability of infection is uniformly 
-#' distributed between the last negative test and diagnosis, and an "upper bound"
-#' that assumes infection occurred instantaneously after the negative test.
+#' Calls the TID_cdfContinuous function to estimate CDF of the TID, then
+#' evaluates the discrete PDF in time intervals that match reporting period
+#' units (intLength).
 #'  
 #' @param infPeriod A vector of continuous times from last HIV test to diagnosis
 #'          for a population

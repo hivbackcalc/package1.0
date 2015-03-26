@@ -14,10 +14,10 @@ HIVBackCalc estimates undiagnosed HIV cases based on testing history data from d
 The vignette will guide you through a full analysis using a simulated dataset that reflects similar population-level characteristics to the data described in the manuscript.
 
 ```{r setup, echo=FALSE, message=FALSE}
-#setwd('F:/GitHub/package1.02/HIVBackCalc')
+setwd('F:/GitHub/package1.02/HIVBackCalc')
 
 # Setup
-#load('data/KCsim.RData')
+load('data/KCsim.RData')
 library(HIVBackCalc)
 #source('R/model.R')
 #source('R/tid.R')
@@ -54,13 +54,17 @@ The necessary variables are:
 1. Year of diagnosis (yearDx)
 1. Time of diagnosis (timeDx)
     * Defined by the reporting time unit. In the example data, diagnoses are reported quarterly, specified using decimals: 0.00 = Q1 (Jan-Mar), 0.25 = Q2, etc.  So someone diagnosed in the third quarter of 2008 would have timeDX = 2008.75.
-1. Testing history (everHadNegTest)
+1. Testing history (everHadNegTest, everHadNegTestM)
     * Response to "Have you ever had a negative HIV test?"
-    * Three possible values:  TRUE, FALSE and <NA>
-1. Time from last negative test to diagnosis (infPeriod)
+    * Three possible values:  TRUE, FALSE and NA
+    * The second version has a lower number of repeat testers
+1. Time from last negative test to diagnosis (infPeriod, infPeriodM)
     * If everHadNegTest=FALSE, imputed as the smaller of 18 years, or hdx_age-16.
+    * The second version has a correspondingly different set of imputed cases
 
-The remainder of the variables are optional descriptive variables by which the data can be stratified for subgroup analyses.
+The remainder of the variables are optional descriptive variables by which the data can be stratified for subgroup analyses.  We will use the second versions of the last test
+and infPeriod variables to examine the impact of the repeat testing fraction on the
+estimates of undiagnosed cases (at the end of this vignette).
 
 ## Specify Diagnosed Interval Length
 
@@ -207,14 +211,68 @@ undiagnosedConstBase <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriod,
                                                  intLength=diagInterval,
                                                  incidence=constantIncidence)
 
-undiagnosedConstBase
-
 # Upper Bound
 undiagnosedConstUpper <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriod,
                                                   case='upper_bound',
                                                   intLength=diagInterval,
                                                   incidence=constantIncidence)
 
-undiagnosedConstUpper
+
+rbind(BaseCase=undiagnosedConstBase, 
+      UpperBound=undiagnosedConstUpper)
+```
+## Impact of Repeat Tester Fraction on Estimates
+
+In the Seattle/King County jurisdiction, repeat testing among MSM was the norm: over 90% of those with known testing history reported a previous negative test, and the median inter-test interval was just over a year.  Our methods perform well in this setting, as the uncertainty is well bounded in the observed data.  
+
+In other jurisdictions, repeat testing may be less common, with more people diagnosed on their first test.  In this case, the length of the period during which infection may have occurred is not bounded by an observed inter-test interval, it must be imputed, and that requires an assumption.  
+
+Our method takes a relatively conservative approach to this imputation, assuming the window of possible infection is the shorter of 18 years, or age-16.  The base case estimates assume the probability of infection is uniformly distributed across this interval; the upper bound assumes infection occurs at the beginning.  In both cases, this introduces a potentially long period of undiagnosed infection.
+
+To get a sense of how this would affect the estimates of the number of undiagnosed cases, we will analyze the simulated dataset with 50% of the repeat testers randomly recoded to have no previous test.  The recoded data are the variables "everHadNegTestM" and "infPeriodM".
+
+We'll run the estimates with the constant incidence assumption, and compare the results.
+
+First, compare the data, before and after the random last negative test deletions:
+
+```{r, echo=F}
+cat("Comparing whether last negative test exists")
+rbind(before=table(KCsim$everHadNegTest, useNA="always"), 
+      after=table(KCsim$everHadNegTestM, useNA="always"))
+
+cat("Comparing length of possible infection window (years)")
+rbind(before=table(round(KCsim$infPeriod,0), useNA="always"), 
+      after=table(round(KCsim$infPeriodM,0), useNA="always"))
+```
+
+Roughly half of the non-missing cases are now diagnosed on their first test, and
+the distribution of the possible infection window is strongly shifted to the right.
+
+```{r, echo=TRUE, eval=TRUE}
+constantIncidence <- mean(diagCounts, na.rm=TRUE)
+ 
+# Base Case
+undiagnosedConstBaseM <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriodM,
+                                                 case='base_case',
+                                                 intLength=diagInterval,
+                                                 incidence=constantIncidence)
+
+# Upper Bound
+undiagnosedConstUpperM <- estimateUndiagnosedConst(infPeriod=KCsim$infPeriodM,
+                                                  case='upper_bound',
+                                                  intLength=diagInterval,
+                                                  incidence=constantIncidence)
 
 ```
+```{r, echo=FALSE}
+cat("Compare resulting estimates of the number of undiagnosed cases")
+rbind(before=round(c(BaseCase=undiagnosedConstBase, UpperBound=undiagnosedConstUpper),0),
+      after=round(c(undiagnosedConstBaseM, undiagnosedConstUpperM),0),
+      ratio=round(c(undiagnosedConstBaseM/undiagnosedConstBase, 
+                    undiagnosedConstUpperM/undiagnosedConstUpper),1))
+
+```
+
+The estimate of the number of undiagnosed cases is roughly doubled, for both the base case and the upper bound assumptions.  This will also double the estimate of the undiagnosed fraction, because the number of cases is still small relative to the estimated number of persons living with HIV in this setting.  Thus, with an increase from 9% to 50% of the diagnoses coming from first-time testers, our estimates of the undiagnosed fraction would increase from the 6-11% range we report in the paper to something on the order of 12-22%.  
+
+Of course, many other assumptions could be made about the differences between repeat testers and those diagnosed on their first test.  Some of these could lead to different results.  For example, if the repeat testers are coming in on a regular annual schedule, while the first-time testers are testing in response to a recent risk exposure, then we would expect little impact on the estimates, or perhaps a small reduction in the undiagnosed fraction.  On the other hand, the Upper Bound estimate for the recoded data does give the worst case that is still consistent with the data.
