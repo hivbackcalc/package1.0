@@ -97,19 +97,21 @@ combineResults <- function(x) {
 plot.results <- function(x) {
 
     d <- x$resultsAll
-    p <- ggplot(d,aes(x=time,y=value,group=var)) +
-      geom_line(aes(alpha=var, color=var)) +
-      geom_point(aes(color=var)) +
-      scale_alpha_manual(values=c(.5,1,1,1),name="") + 
-      scale_linetype_manual(name="",values=c(3,1,2,2)) + 
-      theme_bw()+
-      theme(legend.position='bottom',axis.text.x=element_text(angle=90)) + 
-      scale_color_hue(name="") + 
-      scale_x_continuous(breaks=seq(min(d$time),max(d$time),by=2))+
-      xlab("Time") + ylab("Counts") +
-      facet_grid(group~., scales='free_y')
+    p <- ggplot(d,aes(x=time,y=value, linetype=var))  +   
+      geom_line(aes(color=var), size=0.5) +
+      geom_point(aes(color=var, shape=var), size=2) + 
+      scale_alpha_manual(values=c(.5,1,1),name="") + 
+      scale_color_manual(name="", values=c("gray3", "blue", "orange2")) + 
+      scale_linetype_manual(name="",values=c(6,3,3)) + 
+      scale_shape_manual(name="", values=c(3,16,16)) +
+      facet_grid(group~.,scales="free_y") +
+      xlab("Time") + ylab("Counts") + 
+      geom_blank(aes(x=2008,y=0)) +
+      scale_y_continuous(expand=c(.15,0)) + 
+      theme_bw() + 
+      theme(text = element_text(size = 10)) +
+      theme(legend.position="bottom",axis.text.x=element_text(angle=90))
 
     return(p)
 }
-
 

@@ -1,6 +1,6 @@
 ---
 title: "Introduction to HIVBackCalc"
-author: "Jeanette Birnbaum"
+author: "Jeanette Birnbaum and Martina Morris"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -9,9 +9,10 @@ vignette: >
   %\usepackage[utf8]{inputenc}
 ---
 
-HIVBackCalc estimates undiagnosed HIV cases based on testing history data from diagnosed persons reporting on when they last had a negative HIV test. HIV diagnoses observed in a given year are the convolution of incidence in prior years and the probability of being diagnosed in that year conditional on infection in a prior year. This package may be used to backcalculate HIV incidence...
+HIVBackCalc estimates HIV incidence, and the number of undiagnosed HIV cases, from testing history data provided by diagnosed cases. The method is based on the basic principle of 
+backcalculation:  HIV diagnoses observed in a given year are the convolution of incidence in prior years and the probability of being diagnosed in the given year conditional on infection in a prior year.  The package is desgined to be used with HIV surveillance data on the date of diagnosis, and the date of the last negative test for all diagnosed cases in a jurisdiction.  Provision is made for cases diagnosed on their first test, and for cases with missing test history data.
 
-The vignette will guide you through a full analysis using a simulated dataset that reflects similar population-level characteristics to the data described in the manuscript.
+This package contains the basic code needed to replicate the analysis in the corresponding paper.  However, due to privacy regulations, the dataset included here is a simulated version that matches the population-level characteristics of the original data.  The vignette will guide you through a full analysis, with a sensitivity analysis at the end.
 
 ```{r setup, echo=FALSE, message=FALSE}
 setwd('F:/GitHub/package1.02/HIVBackCalc')
@@ -19,9 +20,9 @@ setwd('F:/GitHub/package1.02/HIVBackCalc')
 # Setup
 load('data/KCsim.RData')
 library(HIVBackCalc)
-#source('R/model.R')
-#source('R/tid.R')
-#source('R/results.R')
+source('R/model.R')
+source('R/tid.R')
+source('R/results.R')
 #library(reshape2)
 #library(ggplot2)
 #library(scales)
@@ -116,7 +117,7 @@ summary(TIDs, intLength=diagInterval,
 ```{r, echo=FALSE, results='asis'}
 knitr::kable(summary(TIDs, intLength=diagInterval,
                      cases = c('Base Case', 'Upper Bound'),
-                     times =c(0, 0.25, 1, 5, 10, 18)))
+                     times =c(0, 0.25, 1, 5, 10, 17, 18)))
 ```
 
 ## Backcalculation of Incidence

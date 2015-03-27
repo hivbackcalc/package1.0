@@ -197,9 +197,9 @@ plot.TID <- function(x, intLength, cases=NULL, legendpos=NULL) {
     if (is.null(legendpos)) legendpos='bottom'
 
     p <- ggplot(d) + geom_line(aes(x=Time,y=value,color=var)) + 
-      scale_color_hue(name="") +
+      scale_color_manual(values=c("blue","orange2"),name="") +
       theme_bw() + 
-      ylab(" ") + 
+      ylab("Probability") + 
       xlab("Years Since Infection") +
       scale_x_continuous(expand=c(0,.2)) + 
       theme(legend.position=legendpos) + 
