@@ -25,8 +25,8 @@
 #'          for integers greater than floor(max(infPeriod/intLength)) + 1
 TID_cdfContinuous <- function(infPeriod,case,intLength,survivor=FALSE) {
 
-    # Remove 0 or missing infPeriods 
-    infPeriod <- sort(infPeriod[!is.na(infPeriod) & infPeriod > 0]) 
+    # Remove missing infPeriods 
+    infPeriod <- sort(infPeriod[!is.na(infPeriod)]) 
     n <- length(infPeriod)
 
     # Define the CDF of time from infection to diagnosis in 
@@ -90,8 +90,8 @@ TID_cdfContinuous <- function(infPeriod,case,intLength,survivor=FALSE) {
 #'          for integers greater than floor(max(infPeriod/intLength)) + 1
 TID_pdf <- function(infPeriod,case,intLength) {
 
-    # Remove 0 or missing infPeriods 
-    infPeriod <- sort(infPeriod[!is.na(infPeriod) & infPeriod > 0]) 
+    # Remove missing infPeriods 
+    infPeriod <- sort(infPeriod[!is.na(infPeriod)]) 
     n <- length(infPeriod)
 
     # Define the CDF of time from infection to diagnosis in 

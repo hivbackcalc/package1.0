@@ -15,14 +15,12 @@ backcalculation:  HIV diagnoses observed in a given year are the convolution of 
 This package contains the basic code needed to replicate the analysis in the corresponding paper.  However, due to privacy regulations, the dataset included here is a simulated version that matches the population-level characteristics of the original data.  The vignette will guide you through a full analysis, with a sensitivity analysis at the end.
 
 ```{r setup, echo=FALSE, message=FALSE}
-setwd('F:/GitHub/package1.02/HIVBackCalc')
 
 # Setup
-load('data/KCsim.RData')
 library(HIVBackCalc)
-source('R/model.R')
-source('R/tid.R')
-source('R/results.R')
+#source('R/model.R')
+#source('R/tid.R')
+#source('R/results.R')
 #library(reshape2)
 #library(ggplot2)
 #library(scales)
