@@ -1,21 +1,26 @@
-# package1.0
-v1.0 of the R package
+Follow the installation instructions below to load the HIVBackCalc R package. The package includes [a vignette](https://github.com/hivbackcalc/package1.0/wiki/Vignette-guide-to-the-R-package) that provides a guided analysis. 
 
-## Installation instructions
+## Installing the package
 
-Download the .tar.gz (Mac OS X, Linux) or .zip file into a directory. Open R in that directory and type
+The package is hosted on GitHub and can be installed using the [devtools package](https://github.com/hadley/devtools) by typing the following in R:
 
-install.packages('HIVBackCalc_1.02.zip', repos=NULL)
+``` r
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github('hivbackcalc/package1.0/HIVBackCalc', build_vignettes=TRUE)
+```
 
-(Use the appropriate zipped file in the line above - insert .tar.gz if not on Windows.)
+## Loading the package
 
-On at least Mac OS X, you may need to include the argument type='source', e.g.
+To load the package, type the following in R:
 
-install.packages('HIVBackCalc_1.02.tar.gz', repos=NULL, type='source')
-
-To view the vignette:
-
+``` r
 library(HIVBackCalc)
+```
 
+## Vignette
+
+The vignette guides you through a sample analysis. You may view it using the [vignette tab](https://github.com/hivbackcalc/package1.0/wiki/Vignette-guide-to-the-R-package) in this Wiki or from the loaded package by typing
+
+``` r
 vignette('Introduction', package='HIVBackCalc')
-
+```
