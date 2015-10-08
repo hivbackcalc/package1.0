@@ -6,7 +6,7 @@ The package is hosted on GitHub and can be installed using the [devtools package
 
 ``` r
 if (!require("devtools")) install.packages("devtools")
-devtools::install_github('hivbackcalc/package1.0/HIVBackCalc', build_vignettes=TRUE)
+devtools::install_github('hivbackcalc/package1.0/HIVBackCalc', ref='PLoSOne-v1.02', build_vignettes=TRUE)
 ```
 
 ## Loading the package
