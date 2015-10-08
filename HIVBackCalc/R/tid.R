@@ -25,8 +25,11 @@
 #'          for integers greater than floor(max(infPeriod/intLength)) + 1
 TID_cdfContinuous <- function(infPeriod,case,intLength,survivor=FALSE) {
 
-    # Remove missing infPeriods 
+    # Remove missing infPeriods and warn if there are zeroes
     infPeriod <- sort(infPeriod[!is.na(infPeriod)]) 
+    if(sum(infPeriod==0)!=0) stop('Please resolve infPeriod=0 cases before proceeding, e.g. 
+                                  set them to infPeriod=NA (missing) if you cannot identify
+                                  a valid infPeriod.')
     n <- length(infPeriod)
 
     # Define the CDF of time from infection to diagnosis in 
