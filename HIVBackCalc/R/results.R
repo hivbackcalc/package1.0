@@ -28,7 +28,8 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
 #'  
 #' Incidence and undiagnosed estimates for different cases are initially
 #' saved in separate objects. This function combines them into one 
-#' object of class "results" to facilitate presenting results.
+#' object of class "results" to facilitate presenting results. It also
+#' summarizes results across all time periods and by year.
 #'  
 #' @param x List with two tiers: the first tier identifies the cases.
 #'          Each case is a list of 2: the first element is the "backproj"
@@ -37,53 +38,63 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
 #'  
 #' @return List object of class "results" 
 combineResults <- function(x) {
-    # Times with observed diagnoses
-    allTimes <- as.numeric(names(x[[1]][[1]]$y))
-    obsTimes <- !is.na(allTimes)
-    times <- allTimes[obsTimes]
-    x$times <- times
-
-    # Diagnoses
-    x$diagnoses <- x[[1]][[1]]$y[obsTimes]
-
-    # Incidence and Undiagnosed organized by case
-    cases <- names(x)[!names(x)%in%c('times', 'diagnoses')]
-    for (c in cases) {
-        incidence <- x[[c]][[1]]$lambda[obsTimes]
-        undiagnosed <- x[[c]][[2]][obsTimes]
-        x[[c]] <- list(incidence=incidence, undiagnosed=undiagnosed)
-    }
-
-    # Data frame with all results
-    x$resultsAll <- data.frame(time=times, 
-                               group='Diagnoses and Incidence', 
-                               var='# Diagnosed',
-                               value=x$diagnoses)
-    for (c in cases) {
-        x$resultsAll  <- rbind(x$resultsAll,
-                              data.frame(time=times, 
-                                         group='Diagnoses and Incidence', 
-                                         var=c,
-                                         value=x[[c]]$incidence),
-                              data.frame(time=times,
-                                         group='Undiagnosed Cases',
-                                         var=c,
-                                         value=x[[c]]$undiagnosed))
-    }
-
-    # Data frame with summarized results
-    x$resultsSummary <- ddply(x$resultsAll, .(var, group), function(x) c(summary(x$value)))
-    x$resultsSummary <- within(x$resultsSummary, {
-                                group <- as.character(group)
-                                group[group=='Diagnoses and Incidence' &
-                                        var=='# Diagnosed'] <- 'Diagnoses'
-                                group[group=='Diagnoses and Incidence'] <- 'Incidence'
-                                })
-    colnames(x$resultsSummary)[1:2] <- c('Diagnoses/Case', 'Estimate')
-
-
-    class(x) <- append(class(x), 'results')
-    return(x)
+  # Times with observed diagnoses
+  allTimes <- as.numeric(names(x[[1]][[1]]$y))
+  obsTimes <- !is.na(allTimes)
+  times <- allTimes[obsTimes]
+  x$times <- times
+  
+  # Diagnoses
+  x$diagnoses <- x[[1]][[1]]$y[obsTimes]
+  
+  # Incidence and Undiagnosed organized by case
+  cases <- names(x)[!names(x)%in%c('times', 'diagnoses')]
+  for (c in cases) {
+    incidence <- x[[c]][[1]]$lambda[obsTimes]
+    undiagnosed <- x[[c]][[2]][obsTimes]
+    x[[c]] <- list(incidence=incidence, undiagnosed=undiagnosed)
+  }
+  
+  # Data frame with all results
+  x$resultsAll <- data.frame(time=times, 
+                             group='Diagnoses and Incidence', 
+                             var='# Diagnosed',
+                             value=x$diagnoses)
+  for (c in cases) {
+    x$resultsAll  <- rbind(x$resultsAll,
+                           data.frame(time=times, 
+                                      group='Diagnoses and Incidence', 
+                                      var=c,
+                                      value=x[[c]]$incidence),
+                           data.frame(time=times,
+                                      group='Undiagnosed Cases',
+                                      var=c,
+                                      value=x[[c]]$undiagnosed))
+  }
+  
+  # Data frame with summarized results
+  x$resultsSummary <- ddply(x$resultsAll, .(var, group), function(x) c(summary(x$value)))
+  x$resultsSummary <- within(x$resultsSummary, {
+    group <- as.character(group)
+    group[group=='Diagnoses and Incidence' &
+            var=='# Diagnosed'] <- 'Diagnoses'
+    group[group=='Diagnoses and Incidence'] <- 'Incidence'
+  })
+  colnames(x$resultsSummary)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  
+  # Data frame with summarized results by year
+  x$resultsSummaryYear <- ddply(transform(x$resultsAll, Year=floor(time)), 
+                            .(var, group, Year), function(x) c(summary(x$value)))
+  x$resultsSummaryYear <- within(x$resultsSummaryYear, {
+    group <- as.character(group)
+    group[group=='Diagnoses and Incidence' &
+            var=='# Diagnosed'] <- 'Diagnoses'
+    group[group=='Diagnoses and Incidence'] <- 'Incidence'
+  })
+  colnames(x$resultsSummaryYear)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  
+  class(x) <- append(class(x), 'results')
+  return(x)
 }
 
 #' Plot estimates incidence and undiagnosed cases
@@ -114,4 +125,225 @@ plot.results <- function(x) {
 
     return(p)
 }
+
+######################################################################
+# runBackCalc
+######################################################################
+
+#' Optional wrapper function to run all the backcalculation steps
+#' @param testhist Data frame of class 'testinghistories' containing the time of 
+#'        diagnosis within "timeDx" and time since last negative test in 
+#'        "infPeriod"
+#' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
+#' @param cases Vector of names of cases to include for the TID assumptions. 
+#'        Defaults to all cases computed by estimateTID, which currently 
+#'        offers 'base_case' and 'upper_bound'. 
+#' @param prev  Optional data frame with 1st column 'Year' and a 2nd column with
+#'        PLWHA for the population represented in the testhist object
+runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
+  
+  if (!is.null(cases)) stop("In runBackCalc: not coded yet")
+  
+  # Estimate TIDs
+  TIDs <- estimateTID(testhist$infPeriod, intLength=diagInterval)
+  cases <- names(TIDs)
+  
+  # Diagnoses
+  diagCounts = tabulateDiagnoses(testhist, intLength=diagInterval)
+  
+  # Initialize incidence and undiagnosed count lists
+  incidence <- vector(mode='list', length=length(cases))
+  names(incidence) <- cases
+  undiagnosed <- incidence
+  
+  # Estimate incidence and undiagnosed
+  for (c in cases) {
+    cat('\nEstimating case', c, '...\n')
+    incidence[[c]] = estimateIncidence(y=diagCounts,
+                                      pid=TIDs[[c]]$pdffxn,
+                                      gamma=0.1,
+                                      verbose=FALSE)
+    undiagnosed[[c]] <- estimateUndiagnosed(incidence[[c]])
+  }
+  
+  # Compile results
+  results <- combineResults(list(`Base Case`=list(incidence[['base_case']],
+                                                  undiagnosed[['base_case']]),
+                                 `Upper Bound`=list(incidence[['upper_bound']],
+                                                    undiagnosed[['upper_bound']])))
+  
+  # True prevalence
+  if (!is.null(prev)) trueprev <- calcTruePrev(results, prev)
+  
+  return(list(TIDs=TIDs, results=results, trueprev=trueprev, N=nrow(testhist)))
+}
+
+######################################################################
+# runSubgroups
+######################################################################
+
+#' Optional wrapper function to run and compile results for subgroups
+#' @param testhist Data frame of class 'testinghistories' containing the time of 
+#'        diagnosis within "timeDx" and time since last negative test in 
+#'        "infPeriod"
+#' @subvar Name of the variable within the testhist data frame that defines
+#'        subgroups within which to run the backcalculation
+#' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
+#' @cases Vector of names of cases to include for the TID assumptions. 
+#'        Defaults to all cases computed by estimateTID, which currently 
+#'        offers 'base_case' and 'upper_bound'. 
+#' @prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
+#'        for the population represented in the testhist object
+#' @save  Optional file path to save compiled true prevalence results
+runSubgroups = function(testhist, subvar, intLength, cases=NULL, 
+                        prev=NULL, save=NULL) {
+  
+  if (!is.null(cases)) stop("In runSubgroups: not coded yet")
+  if (is.numeric(testhist[,subvar])) {
+    warning('Subgroup variable will be coerced to character')
+    testhist[,subvar] <- as.character(testhist[,subvar])
+  }
+  
+  # Check that if prevalence is given, it is given for all the 
+  # subgroups
+  subgroups <- unique(testhist[,subvar])
+  numsub <- length(subgroups)
+  if (sum(subgroups%in%colnames(prev))!=numsub) stop('In runSubGroups, 
+                          prevalence data are insufficient')
+  
+  # Prepare to store results for each subgroup
+  subResults <- vector('list', length=(numsub+1))
+  names(subResults) <- c(as.character(subgroups), 'Total-stratified')
+  
+  # Loop through subgroups
+  for (s in subgroups) {
+    
+    cat('\nSUBGROUP: ', s, '\n')
+    # Run the backcalculation for this subgroup, selecting
+    # the correct prevalence column if applicable
+    if (!is.null(prev)) {
+      subPrev <- prev[, c('Year', as.character(s))]
+    } else subPrev <- NULL
+    subResults[[s]] <- runBackCalc(testhist[testhist[,subvar]==s,], 
+                                   intLength=diagInterval, 
+                                   prev=subPrev)
+    
+      # Add a subgroup identifier to the compiled results
+      for (r in c('resultsAll', 'resultsSummary', 'resultsSummaryYear')) {
+        subResults[[s]]$results[[r]] = data.frame(Subgroup = s,
+                                                  subResults[[s]]$results[[r]],
+                                                  check.names=FALSE)
+      }
+  }
+  
+  # Extract the results in order to get subgroup-stratified totals
+  resultsAllList <- lapply(subResults, function(x) x$results$resultsAll$value)
+  resultsAll <- cbind(subResults[[1]]$results$resultsAll[,c('time', 'group', 'var')],
+                      do.call(cbind, resultsAllList))
+  resultsAll$value <- apply(resultsAll[,as.character(subgroups)],1,sum)
+  
+  # Summarize subgroup-stratified totals
+  # Data frame with summarized results
+  resultsSummary <- ddply(resultsAll, .(var, group), function(x) c(summary(x$value)))
+  resultsSummary <- within(resultsSummary, {
+    group <- as.character(group)
+    group[group=='Diagnoses and Incidence' &
+            var=='# Diagnosed'] <- 'Diagnoses'
+    group[group=='Diagnoses and Incidence'] <- 'Incidence'
+  })
+  colnames(resultsSummary)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  
+  # Data frame with summarized results by year
+  resultsSummaryYear <- ddply(transform(resultsAll, Year=floor(time)), 
+                                .(var, group, Year), function(x) c(summary(x$value)))
+  resultsSummaryYear <- within(resultsSummaryYear, {
+    group <- as.character(group)
+    group[group=='Diagnoses and Incidence' &
+            var=='# Diagnosed'] <- 'Diagnoses'
+    group[group=='Diagnoses and Incidence'] <- 'Incidence'
+  })
+  colnames(resultsSummaryYear)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  
+  # Save in subResults[['Total-stratified']]$results object
+  subResults[['Total-stratified']] <- 
+    list(results=list(resultsAll=resultsAll,
+                      resultsSummary=resultsSummary,
+                      resultsSummaryYear=resultsSummaryYear))
+  
+  if (!is.null(prev)) {
+    
+    # Calculate total-stratified true prevalence
+    subResults[['Total-stratified']]$trueprev <- 
+      calcTruePrev(subResults[['Total-stratified']]$results,
+                   prev=data.frame(Year=prev$Year,
+                                   Total=apply(trueprev_data[,as.character(subgroups)],
+                                               1,sum)))
+  }
+  
+  if (!is.null(save)) {
+    trueprev <- do.call(rbind, lapply(names(subResults), 
+                               function(x) {
+                                 data.frame(Subgroup=x,
+                                            subResults[[x]]$trueprev,
+                                            check.names=FALSE)
+                                }))
+    write.csv(trueprev[, !colnames(trueprev) %in% c('1st Qu.', 'Median', '3rd Qu.')],
+              file=save,
+              row.names=FALSE)
+  }
+  
+  return(subResults)
+}
+
+######################################################################
+# calcTruePrev
+######################################################################
+
+#' Function to combine yearly PLWHA prevalence with undiagnosed estimates to provide
+#' true prevalence estimates
+#' @param x Object of class 'results', the output of combineResults
+#' @param prev Data frame with 1st column 'Year' and a 2nd column with PLWH
+#'        for the population represented in the results
+calcTruePrev = function(x, prev) {
+  
+  # Fix the column name of the prevalence estimate as 'PLWHA'
+  colnames(prev)[2] <- 'PLWHA'
+  
+  # Subset to Undiagnosed estimates and merge on prevalence
+  undiag <- subset(x$resultsSummaryYear, Estimate=='Undiagnosed Cases')
+  undiag <- merge(undiag, prev, all.y=TRUE, by='Year')
+  
+  # Now that we've reduced estimates to those years for which we 
+  # were given prevalence, lose the PLWHA column and extract the 
+  # estimates and PLWHA as a matrix separately
+  estMatrix <- undiag[,4:9]
+  prevMatrix <- replicate(ncol(estMatrix), undiag$PLWHA)
+  undiag$PLWHA <- NULL
+  
+  # Compute true prevalence and % undiagnosed
+  trueprevMatrix <- estMatrix + prevMatrix
+  undiagFracMatrix <- 100*(estMatrix/trueprevMatrix)
+  
+  # Turn those back into data frames
+  trueprev <- undiag
+  trueprev$Estimate <- 'True Prevalence'
+  trueprev[,4:9] <- trueprevMatrix
+  undiagFrac <- undiag
+  undiagFrac$Estimate <- 'Undiagnosed Fraction (%)'
+  undiagFrac[,4:9] <- undiagFracMatrix
+  
+  # Prepare prevalence to be able to insert it into the trueprev table
+  previnsert = transform(prev, diag='PLWHA', est='PLWHA', min=NA, q1=NA, med=NA, q3=NA, max=NA)
+  previnsert = previnsert[,c('Year', 'diag', 'est', 'min', 'q1', 'med', 
+                             'PLWHA', 'q3', 'max')]
+  colnames(previnsert) <- colnames(undiag)
+  
+  # Combine and sort
+  allResults <- rbind(previnsert, undiag, trueprev, undiagFrac)
+  allResults[,4:9] <- round(allResults[,4:9], 1)
+  allResults <- allResults[order(allResults$Year, allResults[,2]),]
+  
+  return(allResults)
+}
+
 

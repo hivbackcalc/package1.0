@@ -1,12 +1,14 @@
 Package: HIVBackCalc
 Type: Package
-Title: Does back calculation based on HIV diagnosis and testing
-        history data
-Version: 1.02
+Title: Back-calculation of undiagnosed HIV using testing histories
+Version: 1.03
 Date: 2013-05-21
 Author: Ian Fellows & Jeanette Birnbaum
 Maintainer: Jeanette Birnbaum <kurian@uw.edu>
-Description: Does back calculation based on HIV diagnosis data, and testing history. Version 1.02 is a beta public release.
+Description: Back-calculates undiagnosed HIV based on HIV diagnoses and 
+    testing histories. Version 1.03 is an updated public release synced 
+    with the RShiny app.
+URL: http://hivbackcalc.github.io
 Depends: rootSolve, ggplot2, plyr
 License: MIT
 Packaged: 2013-05-23 00:09:38 UTC; ianfellows
