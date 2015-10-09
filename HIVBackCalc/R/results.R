@@ -186,15 +186,15 @@ runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
 #' @param testhist Data frame of class 'testinghistories' containing the time of 
 #'        diagnosis within "timeDx" and time since last negative test in 
 #'        "infPeriod"
-#' @subvar Name of the variable within the testhist data frame that defines
+#' @param subvar Name of the variable within the testhist data frame that defines
 #'        subgroups within which to run the backcalculation
 #' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
-#' @cases Vector of names of cases to include for the TID assumptions. 
+#' @param cases Vector of names of cases to include for the TID assumptions. 
 #'        Defaults to all cases computed by estimateTID, which currently 
 #'        offers 'base_case' and 'upper_bound'. 
-#' @prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
+#' @param prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
 #'        for the population represented in the testhist object
-#' @save  Optional file path to save compiled true prevalence results
+#' @param save  Optional file path to save compiled true prevalence results
 runSubgroups = function(testhist, subvar, intLength, cases=NULL, 
                         prev=NULL, save=NULL) {
   
