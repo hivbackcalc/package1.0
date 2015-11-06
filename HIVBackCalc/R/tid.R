@@ -199,8 +199,18 @@ plot.TID <- function(x, intLength, cases=NULL, legendpos=NULL) {
     }
     if (is.null(legendpos)) legendpos='bottom'
 
+    # Determine colors needed for scale
+    if (length(cases)==2) {
+        plotcolors <- c('blue', 'orange2')
+    } else if (length(cases)<=12) {
+        plotcolors <- c('#a6cee3','#1f78b4','#b2df8a',
+                       '#33a02c','#fb9a99','#e31a1c',
+                       '#fdbf6f','#ff7f00','#cab2d6',
+                       '#6a3d9a','#ffff99','#b15928')[1:length(cases)]
+    } else stop('In plot.TID, too many cases to plot')
+
     p <- ggplot(d) + geom_line(aes(x=Time,y=value,color=var)) + 
-      scale_color_manual(values=c("blue","orange2"),name="") +
+      scale_color_manual(values=plotcolors,name="") +
       theme_bw() + 
       ylab("Probability") + 
       xlab("Years Since Infection") +
