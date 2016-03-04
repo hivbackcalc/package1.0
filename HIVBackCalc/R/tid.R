@@ -132,15 +132,16 @@ TID_pdf <- function(infPeriod,case,intLength) {
 #'          (in years) between last negative test and diagnosis
 #' @param intLength The interval length by which diagnoses are reported
 #'          (also in years, 1=1 year)
+#' @param cases Cases to estimate; default is c('base_case', 'upper_bound')
 #'  
 #' @return A nested list. The first tier indicates the assumption used
 #'          to estimate the TID. The second tier contains 3 elements:
 #'          "pdffxn", the PDF function, and "pdf" and "cdf" which 
 #'          indicate the respective distributions
-estimateTID <- function(infPeriod, intLength) {
+estimateTID <- function(infPeriod, intLength, cases=NULL) {
 
-    # List of cases available
-    cases <- c('base_case', 'upper_bound')
+    # Default cases
+    if (is.null(cases)) cases <- c('base_case', 'upper_bound')
 
     # TID object
     TIDobject <- vector(length=length(cases), mode='list')
