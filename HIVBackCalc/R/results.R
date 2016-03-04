@@ -277,7 +277,7 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
   # Back to extracting results
   resultsAll <- cbind(subResults[[1]]$results$resultsAll[,c('time', 'group', 'var')],
                       do.call(cbind, resultsAllList))
-  resultsAll$value <- apply(resultsAll[,as.character(subgroups)],1,sum)
+  resultsAll$value <- apply(as.matrix(resultsAll[,as.character(subgroups)]),1,sum)
   
   # Summarize subgroup-stratified totals
   # Data frame with summarized results
@@ -316,7 +316,7 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
     subResults[['Total-stratified']]$trueprev <- 
       calcTruePrev(subResults[['Total-stratified']]$results,
                    prev=data.frame(Year=prev$Year,
-                                   Total=apply(prev[,as.character(subgroups)],
+                                   Total=apply(as.matrix(prev[,as.character(subgroups)]),
                                                1,sum)))
   }
   
