@@ -5,12 +5,18 @@ Version: 1.03
 Date: 2013-05-21
 Author: Ian Fellows & Jeanette Birnbaum
 Maintainer: Jeanette Birnbaum <kurian@uw.edu>
-Description: Back-calculates undiagnosed HIV based on HIV diagnoses and 
-    testing histories. Version 1.03 is an updated public release synced 
+Description: Back-calculates undiagnosed HIV based on HIV diagnoses and
+    testing histories. Version 1.03 is an updated public release synced
     with the RShiny app.
 URL: http://hivbackcalc.github.io
-Depends: rootSolve, ggplot2, plyr
+Depends:
+    rootSolve,
+    ggplot2,
+    plyr
 License: MIT
 Packaged: 2013-05-23 00:09:38 UTC; ianfellows
-Suggests: knitr, rmarkdown
+Suggests:
+    knitr,
+    rmarkdown
 VignetteBuilder: knitr
+RoxygenNote: 5.0.1
