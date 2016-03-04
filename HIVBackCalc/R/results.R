@@ -137,19 +137,25 @@ plot.results <- function(x) {
 #' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
 #' @param cases Vector of names of cases to include for the TID assumptions. 
 #'        Defaults to all cases computed by estimateTID, which currently 
-#'        offers 'base_case' and 'upper_bound'. 
+#'        offers 'base_case' and 'upper_bound'. Names of vector elements will
+#'        be used to label results.
 #' @param prev  Optional data frame with 1st column 'Year' and a 2nd column with
 #'        PLWHA for the population represented in the testhist object
 runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
   
-  if (!is.null(cases)) stop("In runBackCalc: not coded yet")
+  if (is.null(cases)) {
+      cases <- c('base_case', 'upper_bound')
+      names(cases) <- c('Base Case', 'Upper Bound')
+  }
+
   
   # Estimate TIDs
-  TIDs <- estimateTID(testhist$infPeriod, intLength=diagInterval)
-  cases <- names(TIDs)
+  TIDs <- estimateTID(testhist$infPeriod, 
+                      intLength,
+                      cases)
   
   # Diagnoses
-  diagCounts = tabulateDiagnoses(testhist, intLength=diagInterval)
+  diagCounts = tabulateDiagnoses(testhist, intLength)
   
   # Initialize incidence and undiagnosed count lists
   incidence <- vector(mode='list', length=length(cases))
@@ -165,15 +171,18 @@ runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
                                       verbose=FALSE)
     undiagnosed[[c]] <- estimateUndiagnosed(incidence[[c]])
   }
-  
-  # Compile results
-  results <- combineResults(list(`Base Case`=list(incidence[['base_case']],
-                                                  undiagnosed[['base_case']]),
-                                 `Upper Bound`=list(incidence[['upper_bound']],
-                                                    undiagnosed[['upper_bound']])))
-  
+
+  # Compile results - this code allows there to be
+  # any number of cases
+  toCombine <- vector(mode='list',length=length(cases))
+  names(toCombine) <- names(cases)
+  for (c in cases) {
+      toCombine[[which(cases==c)]] <- list(incidence[[c]], undiagnosed[[c]])
+  }
+  results <- combineResults(toCombine)
+
   # True prevalence
-  if (!is.null(prev)) trueprev <- calcTruePrev(results, prev)
+  if (!is.null(prev)) trueprev <- calcTruePrev(results, prev) else trueprev <- NULL
   
   return(list(TIDs=TIDs, results=results, trueprev=trueprev, N=nrow(testhist)))
 }
@@ -191,25 +200,36 @@ runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
 #' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
 #' @param cases Vector of names of cases to include for the TID assumptions. 
 #'        Defaults to all cases computed by estimateTID, which currently 
-#'        offers 'base_case' and 'upper_bound'. 
+#'        offers 'base_case' and 'upper_bound'. Names of vector elements will
+#'        be used to label results.
 #' @param prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
 #'        for the population represented in the testhist object
 #' @param save  Optional file path to save compiled true prevalence results
 runSubgroups = function(testhist, subvar, intLength, cases=NULL, 
                         prev=NULL, save=NULL) {
   
-  if (!is.null(cases)) stop("In runSubgroups: not coded yet")
+  # Subvar
   if (is.numeric(testhist[,subvar])) {
     warning('Subgroup variable will be coerced to character')
     testhist[,subvar] <- as.character(testhist[,subvar])
   }
-  
-  # Check that if prevalence is given, it is given for all the 
-  # subgroups
   subgroups <- unique(testhist[,subvar])
   numsub <- length(subgroups)
-  if (sum(subgroups%in%colnames(prev))!=numsub) stop('In runSubGroups, 
-                          prevalence data are insufficient')
+  
+  # Cases
+  if (is.null(cases)) {
+      cases <- c('base_case', 'upper_bound')
+      names(cases) <- c('Base Case', 'Upper Bound')
+  }
+
+  # Prevalence
+  if (!is.null(prev)) {
+      # Check that if prevalence is given, it is given for all the 
+      # subgroups. If subvar = 'stageGroup', just make fake prev data
+      # because we don't need the subgroup results, just the total-weighted
+      if (sum(subgroups%in%colnames(prev))!=numsub) stop('In runSubGroups, 
+                              prevalence data are insufficient')
+  }
   
   # Prepare to store results for each subgroup
   subResults <- vector('list', length=(numsub+1))
@@ -225,7 +245,8 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
       subPrev <- prev[, c('Year', as.character(s))]
     } else subPrev <- NULL
     subResults[[s]] <- runBackCalc(testhist[testhist[,subvar]==s,], 
-                                   intLength=diagInterval, 
+                                   intLength,
+                                   cases,
                                    prev=subPrev)
     
       # Add a subgroup identifier to the compiled results
@@ -235,9 +256,25 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
                                                   check.names=FALSE)
       }
   }
-  
+
   # Extract the results in order to get subgroup-stratified totals
-  resultsAllList <- lapply(subResults, function(x) x$results$resultsAll$value)
+  resultsAllList <- lapply(lapply(subResults, `[[`, 'results'), `[[`, 'resultsAll')
+
+  # Standardize the times common across the groups - some groups may have diagnoses
+  # in years or quarters earlier or later than others. Because we're taking averages
+  # of incident/undiagnosed cases across time periods rather than sums, let's just
+  # remove the extra time periods. Otherwise we would have to impute something reasonable,
+  # since we do have to sum across subgroups - can't just put in a zero.
+
+  times <- lapply(subgroups, function(x) subResults[[x]]$results$resultsAll$time)
+  mintime <- max(sapply(times, min))
+  maxtime <- min(sapply(times, max))
+  keeptimes <- seq(mintime, maxtime, by=intLength)
+
+  # Vectors of results for just the keeptimes
+  resultsAllList <- lapply(resultsAllList, function(x) x[x$time%in%keeptimes,]$value)
+
+  # Back to extracting results
   resultsAll <- cbind(subResults[[1]]$results$resultsAll[,c('time', 'group', 'var')],
                       do.call(cbind, resultsAllList))
   resultsAll$value <- apply(resultsAll[,as.character(subgroups)],1,sum)
@@ -264,19 +301,22 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
   })
   colnames(resultsSummaryYear)[1:2] <- c('Diagnoses/Case', 'Estimate')
   
-  # Save in subResults[['Total-stratified']]$results object
-  subResults[['Total-stratified']] <- 
-    list(results=list(resultsAll=resultsAll,
+  # Create the results list of class 'results'
+    resultsL=list(resultsAll=resultsAll,
                       resultsSummary=resultsSummary,
-                      resultsSummaryYear=resultsSummaryYear))
-  
+                      resultsSummaryYear=resultsSummaryYear)
+    class(resultsL) <- append(class(x), 'results')
+
+  # Save in subResults[['Total-stratified']]$results object
+  subResults[['Total-stratified']] <- list(results=resultsL)
+
   if (!is.null(prev)) {
     
     # Calculate total-stratified true prevalence
     subResults[['Total-stratified']]$trueprev <- 
       calcTruePrev(subResults[['Total-stratified']]$results,
                    prev=data.frame(Year=prev$Year,
-                                   Total=apply(trueprev_data[,as.character(subgroups)],
+                                   Total=apply(prev[,as.character(subgroups)],
                                                1,sum)))
   }
   
