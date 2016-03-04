@@ -305,7 +305,7 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
     resultsL=list(resultsAll=resultsAll,
                       resultsSummary=resultsSummary,
                       resultsSummaryYear=resultsSummaryYear)
-    class(resultsL) <- append(class(x), 'results')
+    class(resultsL) <- append(class(resultsL), 'results')
 
   # Save in subResults[['Total-stratified']]$results object
   subResults[['Total-stratified']] <- list(results=resultsL)
