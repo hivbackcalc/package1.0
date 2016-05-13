@@ -1,4 +1,47 @@
 
+#' Aggregates diagnosis counts into the specified time interval
+#'  
+#' HIV diagnosis counts from timeDx are aggregated to match 
+#' the specified intLength
+#'  
+#' @param timeDx Time of diagnosis from the testhist data
+#' @param intLength Desired interval length for diagnoses:
+#'        0.25, 0.5 or 1 (1=1 year)
+#'  
+#' @return timeDx variable with intLength 
+aggregateDiagnoses <- function(timeDx, intLength) {
+
+    # Don't allow irregular time steps
+    if (!intLength%in%c(0.25,0.5,1)) stop('Error in tabulateDiagnoses:
+                                          intLength must be 0.25, 0.5 or 1')
+
+
+    # Check that intLength is >= time steps in timeDx
+    times <- sort(unique(timeDx))
+    tstep <- median(times[2:length(times)]-times[1:(length(times)-1)])
+    if (intLength<tstep) stop('Error in tabulateDiagnoses: intLength is smaller
+                              than median interval between diagnosis counts
+                              in variable timeDx')
+
+    # Aggregate diagnoses if necessary
+    if (intLength==tstep) {
+        timeDxNew <- timeDx
+    } else {
+        floored <- floor(timeDx)
+        if (intLength==1) {
+            timeDxNew <- floored
+        } else if (intLength==0.5) {
+            decimals <- timeDx-floored
+            decimals[decimals==0.25] <- 0
+            decimals[decimals==0.75] <- 0.5
+            timeDxNew <- floored+decimals
+        }
+    }
+
+    return(timeDxNew)
+}
+
+
 #' Format eHARS person view data for use with the HIVBackCalc package
 #'  
 #' Creates a data frame of class 'testinghistories' with formatted and

@@ -38,6 +38,7 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
 #'  
 #' @return List object of class "results" 
 combineResults <- function(x) {
+
   # Times with observed diagnoses
   allTimes <- as.numeric(names(x[[1]][[1]]$y))
   obsTimes <- !is.na(allTimes)

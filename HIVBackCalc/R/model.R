@@ -16,6 +16,9 @@
 #' @return Vector of NA's plus diagnosis counts
 tabulateDiagnoses <- function(testhist, intLength, nPriorInt=100) {
 
+    # Aggregate diagnoses if necessary
+    testhist$timeDx <- aggregateDiagnoses(testhist$timeDx, intLength)
+
     # Vector of all intervals
     allTimes <- seq(min(testhist$timeDx),
                     max(testhist$timeDx), 
