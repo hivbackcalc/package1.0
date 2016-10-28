@@ -11,8 +11,10 @@ tabTestHist(testhist, variables, supercolumn = FALSE,
 \item{testhist}{Data frame of class 'testinghistories' with variable
 everHadNegTest}
 
-\item{variables}{Character vector of stratification variable names. 
-Variables must exist in the testhist data frame}
+\item{variables}{NAMED character vector of stratification variable names. 
+Names will be used as table labels.
+Variables must exist in the testhist data frame.
+See examples for using a list structure to do multi-variale cross-tabs.}
 
 \item{supercolumn}{Set to TRUE to include a pretty column indicating
 stratification variables}
@@ -23,5 +25,13 @@ for the entire sample}
 \description{
 Tabulates the everHadNegTest variable by any number of stratification/
 subgroup variables
+}
+\examples{
+# One variable
+tabTestHist(KCsim, c(Year='yearDx'))
+# Marginal, two variables
+tabTestHist(KCsim, c(Year='yearDx', Race='race'), supercolumn=TRUE)
+# Cross-tab, two variables
+tabTestHist(KCsim, list(c(Year='yearDx', Race='race')))
 }
 

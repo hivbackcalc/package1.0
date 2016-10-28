@@ -397,6 +397,40 @@ format_eHARS <- function(rawdata, assumptionNo='age16') {
                 rawVarSum=varsummaries))
 }
 
+
+#' Plots diagnosis counts over time
+#'
+#' Plot of diagnoses vs time, with option to panel by subgroups
+#'
+#' @param testhist Data frame of class 'testinghistories' with variable
+#'        timeDx 
+#' @param showlegend Logical to turn on the legend
+#' @param legendpos Character specifying legend position: bottom, top, right
+#' @examples
+#' plotDiagnoses(KCsim)
+#' plotDiagnoses(KCsim, showlegend=TRUE) + aes(color=race)
+#' plotDiagnoses(KCsim, showlegend=TRUE) + aes(color=race) + facet_grid(.~everHadNegTest)
+
+plotDiagnoses  <- function(testhist, showlegend=FALSE, legendpos='bottom') {
+
+    # Could use geom_count() instead...
+    testhist$count <- 1
+    p <- ggplot(testhist, aes(x=timeDx, y=count, color=factor(count))) +
+        stat_summary(fun.y=sum, geom='point') +
+        stat_summary(fun.y=sum, geom='line') +
+        theme_bw() + 
+        scale_color_discrete(name="") +
+        theme(axis.text.x=element_text(angle=90)) + 
+        scale_x_continuous(breaks=seq(min(testhist$yearDx),max(testhist$yearDx),by=1))+
+        xlab("Time") + ylab("Diagnoses") 
+    if (showlegend) {
+        p <- p + theme(legend.position=legendpos)
+    } else p <- p + guides(color=FALSE)
+
+    return(p)
+  }
+
+
 #' Tabulate responses to 'Have you ever had a negative test?'
 #'
 #' Tabulates the everHadNegTest variable by any number of stratification/
@@ -404,21 +438,43 @@ format_eHARS <- function(rawdata, assumptionNo='age16') {
 #'
 #' @param testhist Data frame of class 'testinghistories' with variable
 #'        everHadNegTest 
-#' @param variables Character vector of stratification variable names. 
-#'        Variables must exist in the testhist data frame
+#' @param variables NAMED character vector of stratification variable names. 
+#'        Names will be used as table labels.
+#'        Variables must exist in the testhist data frame.
+#'        See examples for using a list structure to do multi-variale cross-tabs.
 #' @param supercolumn Set to TRUE to include a pretty column indicating
 #'        stratification variables
 #' @param fullsample_row Set to TRUE to have the 1st row be the results
 #'        for the entire sample
-tabTestHist <- function(testhist, variables, supercolumn=FALSE,
-                                    fullsample_row=FALSE) {
-  vars <- list(NULL)
-  for (v in 1:length(variables)) {
+#' @examples
+#' # One variable
+#' tabTestHist(KCsim, c(Year='yearDx'))
+#' # Marginal, two variables
+#' tabTestHist(KCsim, c(Year='yearDx', Race='race'), supercolumn=TRUE)
+#' # Cross-tab, two variables
+#' tabTestHist(KCsim, list(c(Year='yearDx', Race='race')))
+
+tabTestHist <- function(testhist, variables, 
+                        supercolumn=FALSE, fullsample_row=FALSE) {
+
+    # variables is either a named vector or a list of length 1 of a 
+    # named vector
+    if (!is.list(variables)) {
+        checkvec <- variables
+    } else if (is.list(variables)) {
+        checkvec <-  variables[[1]]
+    } else stop('In tabTestHist, variables must be list or vector')
+    if (is.null(names(checkvec))) stop('In tabTestHist, Vector elements must be named')
     
+    # supercolumn must be TRUE if variables is a vector with >1 element
+    if (is.vector(variables) & length(variables)>2) supercolumn <- TRUE
+    vars <- list(NULL)
+    for (v in 1:length(variables)) {
+
     # Tabulate everHadNegTest for this subgroup
     tab <- ddply(testhist, variables[[v]], function(x, TN=nrow(testhist)) {
-      n <- nrow(x)
-      c(N=n,
+        n <- nrow(x)
+        c(N=n,
         `Column Percent`=round(100*n/TN,0),
         `Percent Yes`=round(100*sum(x$everHadNegTest, na.rm=TRUE)/n,0),
         `Percent No`=round(100*sum(!x$everHadNegTest, na.rm=TRUE)/n,0),
@@ -426,13 +482,14 @@ tabTestHist <- function(testhist, variables, supercolumn=FALSE,
     })
     # Add pretty column with subgroup name
     if (supercolumn) {
-      colnames(tab)[1] <- 'Subgroup'
-      tab <- data.frame(Characteristic=rep('',nrow(tab)),
-                        tab,
-                        stringsAsFactors=FALSE)
-      tab$Characteristic[1] <- names(variables)[v]
+    colnames(tab)[1] <- 'Value'
+    tab <- data.frame(Variable=rep('',nrow(tab)),
+                    tab,
+                    stringsAsFactors=FALSE,
+                    check.names=FALSE)
+    tab$Variable[1] <- names(variables)[v]
     }
-    
+
     vars[[v]] <- tab
   }
   
@@ -459,55 +516,6 @@ tabTestHist <- function(testhist, variables, supercolumn=FALSE,
   return(vars)
 }
 
-#' Plots diagnosis counts over time
-#'
-#' Plot of diagnoses vs time, with option to panel by subgroups
-#'
-#' @param testhist Data frame of class 'testinghistories' with variable
-#'        timeDx 
-#' @param panel Name of variable in testhist by which to panel the plot
-plotDiagnoses  <- function(testhist, panel=NULL) {
-  
-  if (is.null(names(panel))) names(panel) <- panel
-  variables <- c('timeDx', panel[1])
-  
-  counts <- ddply(testhist, variables, function(x) nrow(x))
-  
-  if (!is.null(panel)) {
-    counts$group <- counts[,names(panel)[1]] 
-    legendpos <- 'bottom'
-  } else {
-    counts$group <- 'All'
-    legendpos <- 'none'
-  }
-  
-  if (!is.null(panel)) {
-    if (length(panel)==2) {
-      variables2 <- c('timeDx', panel[2])
-      counts2 <- ddply(testhist, variables2, function(x) nrow(x))
-      counts2$group <- counts2[,names(panel)[2]]
-      counts$biggroup <- names(panel)[1]
-      counts2$biggroup <- names(panel)[2]
-      counts <- rbind(counts2[,c('timeDx','V1','group', 'biggroup')], 
-                         counts[,c('timeDx','V1','group', 'biggroup')])
-    }
-  }
-  
-  p <- ggplot(counts,aes(x=timeDx,y=V1,group=group))  +   
-    geom_line(aes(color=group)) +
-    geom_point(aes(color=group)) + 
-    theme_bw()+
-    scale_color_hue(name="") +
-    theme(legend.position=legendpos,axis.text.x=element_text(angle=90)) + 
-    scale_x_continuous(breaks=seq(min(testhist$yearDx),max(testhist$yearDx),by=1))+
-    xlab("Time") + ylab("Diagnoses") 
-  
-  if (!is.null(panel)) {
-    if (length(panel)==2) p <- p +facet_grid(.~biggroup) 
-  }
-  
-  return(p)
-}
 
 #' Plot responses to 'Have you ever had a negative test?' over time
 #'
@@ -515,29 +523,38 @@ plotDiagnoses  <- function(testhist, panel=NULL) {
 #'
 #' @param testhist Data frame of class 'testinghistories' with variables
 #'        everHadNegTest and yearDx
+#' @param group Optional grouping variable to display using different line types
 #' @param panel Optional variable by which to panel the plot
-plotTestHist <- function(testhist, panel=NULL) {
+#' @examples
+#' # Simple
+#' plotTestHist(KCsim)
+#' # Add a simple group. Refer to it as Group when calling the plot.
+#' newdat <- transform(KCsim, fakeGroup=factor(sample.int(2, nrow(KCsim), replace=TRUE)))
+#' plotTestHist(newdat, group='fakeGroup') + aes(lty=Group)
+#' # That's messy - let's do panels instead. Refer to it as Panel when calling the plot
+#' plotTestHist(newdat, panel='fakeGroup') + facet_grid(.~Panel)
 
-    tabTime <- tabTestHist(testhist, 'yearDx')
+plotTestHist <- function(testhist, group=NULL, panel=NULL) {
 
-    keep.vars <- c(panel, 'yearDx', grep('Percent ', colnames(tabTime),
-                                       value=TRUE))
-    these.ids <- c(panel, 'yearDx')
-    tabTime <- tabTime[,keep.vars]
+    id <- c(Year='yearDx', Group=group, Panel=panel)
+    id <- id[!is.null(id)]
+
+    # Tabulate testing history breakdown
+    tabTime <- tabTestHist(testhist, list(id))
+
+    # Drop the column percent and N variables, and melt
+    tabTime <- subset(tabTime, select=-c(`Column Percent`, N))
     colnames(tabTime) <- gsub('Percent ','',colnames(tabTime))
-    tabTime <- melt(tabTime, id.vars=these.ids)
-    if (!is.null(panel)) tabTime$Group <- tabTime[,panel]
+    tabTime <- melt(tabTime, id.vars=names(id))
 
-    p <- ggplot(tabTime,aes(x=yearDx,y=value,group=variable))  +   
-    geom_line(aes(color=variable)) +
-    geom_point(aes(color=variable)) + 
-    theme_bw()+
-    theme(legend.position='bottom',axis.text.x=element_text(angle=90)) + 
-    scale_color_hue(name="Ever had negative test?") + 
-    scale_x_continuous(breaks=seq(min(tabTime$yearDx),max(tabTime$yearDx),by=2))+
-    xlab("Time") + ylab("Percent") 
+    p <- ggplot(tabTime,aes(x=Year,y=value,color=variable))  +   
+        geom_point() + geom_line() +
+        theme_bw()+
+        theme(legend.position='bottom',axis.text.x=element_text(angle=90)) + 
+        scale_color_hue(name="Ever had negative test?") + 
+        scale_x_continuous(breaks=seq(min(tabTime$Year),max(tabTime$Year),by=2))+
+        xlab("Time") + ylab("Percent") 
 
-    if (!is.null(panel)) p <- p + facet_grid(.~Group)
     return(p)
 }
 

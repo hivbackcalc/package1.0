@@ -4,15 +4,22 @@
 \alias{plotDiagnoses}
 \title{Plots diagnosis counts over time}
 \usage{
-plotDiagnoses(testhist, panel = NULL)
+plotDiagnoses(testhist, showlegend = FALSE, legendpos = "bottom")
 }
 \arguments{
 \item{testhist}{Data frame of class 'testinghistories' with variable
 timeDx}
 
-\item{panel}{Name of variable in testhist by which to panel the plot}
+\item{showlegend}{Logical to turn on the legend}
+
+\item{legendpos}{Character specifying legend position: bottom, top, right}
 }
 \description{
 Plot of diagnoses vs time, with option to panel by subgroups
+}
+\examples{
+plotDiagnoses(KCsim)
+plotDiagnoses(KCsim, showlegend=TRUE) + aes(color=race)
+plotDiagnoses(KCsim, showlegend=TRUE) + aes(color=race) + facet_grid(.~everHadNegTest)
 }
 

@@ -4,15 +4,26 @@
 \alias{plotTestHist}
 \title{Plot responses to 'Have you ever had a negative test?' over time}
 \usage{
-plotTestHist(testhist, panel = NULL)
+plotTestHist(testhist, group = NULL, panel = NULL)
 }
 \arguments{
 \item{testhist}{Data frame of class 'testinghistories' with variables
 everHadNegTest and yearDx}
 
+\item{group}{Optional grouping variable to display using different line types}
+
 \item{panel}{Optional variable by which to panel the plot}
 }
 \description{
 Plots the everHadNegTest results over time
+}
+\examples{
+# Simple
+plotTestHist(KCsim)
+# Add a simple group. Refer to it as Group when calling the plot.
+newdat <- transform(KCsim, fakeGroup=factor(sample.int(2, nrow(KCsim), replace=TRUE)))
+plotTestHist(newdat, group='fakeGroup') + aes(lty=Group)
+# That's messy - let's do panels instead. Refer to it as Panel when calling the plot
+plotTestHist(newdat, panel='fakeGroup') + facet_grid(.~Panel)
 }
 
