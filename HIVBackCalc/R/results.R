@@ -1,4 +1,10 @@
 
+#' Check object is of class "results"
+#'  
+#' @param x Object to check
+is.results <- function(x) { inherits(x, 'results') }
+
+
 #' Plots incidence estimates from estimateIncidence()
 #'  
 #' Plots incidence estimates over time for object of class "backproj" produced 
@@ -37,6 +43,7 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
 #'          the vector of undiagnosed counts returned by estimateUndiagnosed()
 #'  
 #' @return List object of class "results" 
+
 combineResults <- function(x) {
 
   # Times with observed diagnoses
@@ -98,17 +105,56 @@ combineResults <- function(x) {
   return(x)
 }
 
+#' Quickly append results from separate subgroups into one results object
+#' 
+#' Takes runSubgroups output and appends results to facilitate plotting primarily
+#' 
+#' @param x output from runSubgroups
+#' @param includeTotal Logical indicating whether the 'Total-stratified' estimate
+#'          should be included
+#' @return Data frame of class 'results' 
+#' @examples
+#' 
+#' undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+#'                          cases=c(`Base Case`='base_case'))
+#' all <- compileSubgroups(undx)
+compileSubgroups <- function(x, includeTotal=FALSE) {
+    if (!includeTotal) x$`Total-stratified`=NULL
+    all <- list(resultsAll=ldply(names(x), function(x) results[[x]]$results$resultsAll))
+    class(all)  <- append(class(x), 'results')
+    return(all)
+}
+
 #' Plot estimates incidence and undiagnosed cases
 #'  
 #' Overlays the backcalculated incidence on diagnoses in one panel and
 #' undiagnosed counts in another. Cases are indicated by colors.
 #'  
 #' @param x List of class "results", the output of combineResults()
+#' @param panel Character variable name by which to panel the results
 #'  
 #' @return Paneled ggplot2 object 
-plot.results <- function(x) {
+#' @examples
+#' undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+#'                          cases=c(`Base Case`='base_case'))
+#' # Right now there's a lot of nesting; you have to access the right element to 
+#' # get the plot
+#' plot(undx[[1]]$results)
+#' # Panel
+#' all <- compileSubgroups(undx)
+#' plot(all, panel='Subgroup')
+plot.results <- function(x, panel=NULL) {
 
-    d <- x$resultsAll
+    # Check that x is of class results
+    if (!is.results(x)) stop('x is not of class results; look at x and make sure you have the right list element')
+    # Grab the 'resultsAll' object
+    d <- x$resultsAll 
+    # Define the panel variable
+    if (!is.null(panel)) {
+        if (!panel%in%colnames(d)) stop('Panel variable not in data')
+        d$Group  <- d[,panel]
+    }
+
     p <- ggplot(d,aes(x=time,y=value, linetype=var))  +   
       geom_line(aes(color=var), size=0.5) +
       geom_point(aes(color=var, shape=var), size=2) + 
@@ -116,13 +162,17 @@ plot.results <- function(x) {
       scale_color_manual(name="", values=c("gray3", "blue", "orange2")) + 
       scale_linetype_manual(name="",values=c(6,3,3)) + 
       scale_shape_manual(name="", values=c(3,16,16)) +
-      facet_grid(group~.,scales="free_y") +
       xlab("Time") + ylab("Counts") + 
-      geom_blank(aes(x=2008,y=0)) +
+      geom_blank(aes(x=min(d$time),y=0)) +
+      scale_x_continuous(breaks=seq(min(d$time),max(d$time),by=1))+
       scale_y_continuous(expand=c(.15,0)) + 
       theme_bw() + 
       theme(text = element_text(size = 10)) +
       theme(legend.position="bottom",axis.text.x=element_text(angle=90))
+   
+    if (!is.null(panel)) {
+        p <- p+facet_grid(group~Group, scales='free_y')
+    } else p <- p+ facet_grid(group~.,scales="free_y") 
 
     return(p)
 }
@@ -217,11 +267,11 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
   subgroups <- unique(testhist[,subvar])
   numsub <- length(subgroups)
   
-  # Cases
+  # Cases (vector must have names)
   if (is.null(cases)) {
       cases <- c('base_case', 'upper_bound')
       names(cases) <- c('Base Case', 'Upper Bound')
-  }
+  } else if (is.null(names(cases))) stop('Cases vector must have names')
 
   # Prevalence
   if (!is.null(prev)) {
@@ -345,8 +395,15 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
 #' @param x Object of class 'results', the output of combineResults
 #' @param prev Data frame with 1st column 'Year' and a 2nd column with PLWH
 #'        for the population represented in the results
+#' @examples
+#' undx <- runBackCalc(KCsim, 1, cases=c(Base='base_case'))
+#' trueprev <- calcTruePrev(undx$results, KCplwh[,c('Year', 'Total')])
+
 calcTruePrev = function(x, prev) {
   
+    # Check that x is of class results
+    if (!is.results(x)) stop('x is not of class results; look at x and make sure you have the right list element')
+
   # Fix the column name of the prevalence estimate as 'PLWHA'
   colnames(prev)[2] <- 'PLWHA'
   
@@ -385,6 +442,60 @@ calcTruePrev = function(x, prev) {
   allResults <- allResults[order(allResults$Year, allResults[,2]),]
   
   return(allResults)
+}
+
+######################################################################
+# plotTruePrev
+######################################################################
+
+#' Function to combine yearly PLWHA prevalence with undiagnosed estimates to provide
+#' true prevalence estimates
+#' @param x Results of calcTruePrev
+#' @examples
+#' # Right now it requires the results to have the Base Case and Upper Bound, 
+#' # named as shown below
+#' undx <- runBackCalc(KCsim, 1, cases=c(`Base Case`='base_case', `Upper Bound`='upper_bound'))
+#' trueprev <- calcTruePrev(undx$results, KCplwh[,c('Year', 'Total')])
+#' plotTruePrev(trueprev)
+
+plotTruePrev <- function(x) {
+
+        # Not developed yet
+        if (!'Base Case'%in%unique(x[['Diagnoses/Case']]) |
+            !'Upper Bound'%in%unique(x[['Diagnoses/Case']])) stop('Must have Base Case and Upper Bound, named that way')
+
+        tp <- subset(x, Estimate=='PLWHA' | Estimate=='Undiagnosed Cases', 
+                     select=c('Year', 'Diagnoses/Case', 'Estimate', 'Mean'))
+        colnames(tp)[which(colnames(tp)=='Diagnoses/Case')] <- 'Case'
+        plwh <- subset(tp, Estimate=='PLWHA')
+        tp2 <- rbind(subset(tp, Estimate!='PLWHA'),
+                     data.frame(subset(plwh, select=c('Year', 'Mean', 'Estimate')),
+                                Case='Base Case'),
+                     data.frame(subset(plwh, select=c('Year', 'Mean', 'Estimate')),
+                                Case='Upper Bound'))
+        tp2$Estimate <- factor(tp2$Estimate, levels=c('PLWHA', 'Undiagnosed Cases'),
+                               labels=c('Diagnosed PLWHA', 'Undiagnosed Cases'))
+        tp2 = arrange(tp2, Year, Estimate)
+
+        tp3 = ddply(tp2, .(Year, Case), transform, Percent = Mean/sum(Mean) * 100)
+
+        tp3 = ddply(tp3, .(Year, Case), transform, pos = (cumsum(Mean) - 0.5 * Mean))
+        tp3$label = paste0(sprintf("%.0f", tp3$Percent), "%")
+
+
+        p <- ggplot(tp3, aes(x = factor(Year), y = Mean, fill = Estimate)) +
+           geom_bar(stat = "identity", width = .7) +
+              geom_text(aes(y = pos, label = label), size = 4) +
+                 coord_flip() + 
+                 facet_grid(.~Case) + theme_bw() + 
+                 scale_x_discrete(name='') + 
+                 scale_y_continuous(name='Number of Cases') + 
+                 scale_fill_manual(name='', values=c('#a8ddb5', '#43a2ca')) + 
+                 theme_bw() + 
+                 theme(legend.position='bottom') +
+                 theme(axis.text = element_text(size = 10))
+        
+        return(p)
 }
 
 
