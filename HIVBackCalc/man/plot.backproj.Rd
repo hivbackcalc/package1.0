@@ -7,7 +7,7 @@
 Plots incidence estimates over time for object of class "backproj" produced 
 by estimateIncidence(). Optionally can overlay diagnosis counts.}
 \usage{
-\method{plot}{backproj}(x, time, showDiagCounts = TRUE, case = "", ...)
+plot.backproj(x, time, showDiagCounts = TRUE, case = "", ...)
 }
 \arguments{
 \item{x}{The "backproj" object containing incidence estimates}

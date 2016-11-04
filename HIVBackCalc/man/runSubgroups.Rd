@@ -30,4 +30,25 @@ for the population represented in the testhist object}
 \description{
 Optional wrapper function to run and compile results for subgroups
 }
+\examples{
+# Example with fake prevalence corresponding to the fake groups
+# Use check.names=FALSE in the prev data frame construction to ensure
+# that the column names match the values of the fakeGroup variable
+undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+                         cases=c(`Base Case`='base_case'),
+                         prev=data.frame(Year=KCplwh$Year,
+                                         `Group 1`=KCplwh$Total/2,
+                                         `Group 2`=KCplwh$Total/2,
+                                         Total=KCplwh$Total,
+                                         check.names=FALSE))
+# Example with saving results
+undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+                         cases=c(`Base Case`='base_case'),
+                         prev=data.frame(Year=KCplwh$Year,
+                                         `Group 1`=KCplwh$Total/2,
+                                         `Group 2`=KCplwh$Total/2,
+                                         Total=KCplwh$Total,
+                                         check.names=FALSE),
+                         save='testfile.csv')
+}
 

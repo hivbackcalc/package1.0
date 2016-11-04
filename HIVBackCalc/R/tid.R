@@ -140,6 +140,9 @@ TID_pdf <- function(infPeriod,case,intLength) {
 #'          indicate the respective distributions
 estimateTID <- function(infPeriod, intLength, cases=NULL) {
 
+    # Check the infPeriod object
+    if (!is.vector(infPeriod)) stop('infPeriod must be a vector, not a data frame')
+
     # Default cases
     if (is.null(cases)) cases <- c('base_case', 'upper_bound')
 

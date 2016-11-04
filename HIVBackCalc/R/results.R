@@ -256,6 +256,26 @@ runBackCalc = function(testhist, intLength, cases=NULL, prev=NULL) {
 #' @param prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
 #'        for the population represented in the testhist object
 #' @param save  Optional file path to save compiled true prevalence results
+#' @examples
+#' # Example with fake prevalence corresponding to the fake groups
+#' # Use check.names=FALSE in the prev data frame construction to ensure
+#' # that the column names match the values of the fakeGroup variable
+#' undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+#'                          cases=c(`Base Case`='base_case'),
+#'                          prev=data.frame(Year=KCplwh$Year,
+#'                                          `Group 1`=KCplwh$Total/2,
+#'                                          `Group 2`=KCplwh$Total/2,
+#'                                          Total=KCplwh$Total,
+#'                                          check.names=FALSE))
+#' # Example with saving results
+#' undx <- runSubgroups(KCsim, subvar='fakeGroup', intLength=1, 
+#'                          cases=c(`Base Case`='base_case'),
+#'                          prev=data.frame(Year=KCplwh$Year,
+#'                                          `Group 1`=KCplwh$Total/2,
+#'                                          `Group 2`=KCplwh$Total/2,
+#'                                          Total=KCplwh$Total,
+#'                                          check.names=FALSE),
+#'                          save='testfile.csv')
 runSubgroups = function(testhist, subvar, intLength, cases=NULL, 
                         prev=NULL, save=NULL) {
   
@@ -372,16 +392,23 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
   }
   
   if (!is.null(save)) {
-    trueprev <- do.call(rbind, lapply(names(subResults), 
-                               function(x) {
-                                 data.frame(Subgroup=x,
-                                            subResults[[x]]$trueprev,
-                                            check.names=FALSE)
-                                }))
-    write.csv(trueprev[, !colnames(trueprev) %in% c('1st Qu.', 'Median', '3rd Qu.')],
-              file=save,
-              row.names=FALSE)
-  }
+        write.csv(subResults[['Total-stratified']]$results$resultsAll,
+                  file=gsub('.csv', '_resultsAll.csv', save),
+                  row.names=FALSE)
+        if (!is.null(prev)) {
+            # Compile and save trueprev
+            trueprev <- do.call(rbind, lapply(names(subResults), 
+                                       function(x) {
+                                         data.frame(Subgroup=x,
+                                                    subResults[[x]]$trueprev,
+                                                    check.names=FALSE)
+                                        }))
+            write.csv(trueprev[, !colnames(trueprev) %in% 
+                      c('1st Qu.', 'Median', '3rd Qu.')],
+                      file=gsub('.csv', '_trueprev.csv', save),
+                      row.names=FALSE)
+        }
+          }
   
   return(subResults)
 }
@@ -498,4 +525,141 @@ plotTruePrev <- function(x) {
         return(p)
 }
 
+
+######################################################################
+# runAnalysis
+######################################################################
+
+#' Wrapper function that runs an entire analysis
+#' 
+#' Ideally this function will successfully produce all the major
+#' plots and results in one go
+#' 
+#' @param testhist Data frame of class 'testinghistories' containing the time of 
+#'        diagnosis within "timeDx" and time since last negative test in 
+#'        "infPeriod"
+#' @param descriptives NAMED vector with descriptive variables to use in
+#'          looking at the testing histories. See help page for tabTestHist,
+#'          the "variables" argument
+#'        subgroups within which to run the backcalculation
+#' @param subvar Name of the variable within the testhist data frame that defines
+#'        subgroups within which to run the backcalculation
+#' @param intLength Interval length by which diagnoses are tracked; 1=1 year.
+#' @param cases Vector of names of cases to include for the TID assumptions. 
+#'        Defaults to all cases computed by estimateTID, which currently 
+#'        offers 'base_case' and 'upper_bound'. Names of vector elements will
+#'        be used to label results.
+#' @param runEstimation  Logical indicating whether to run a fresh back-calculation
+#' @param savedEstimation  Logical indicating whether to load a saved back-calculation
+#' @param prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
+#'        for the population represented in the testhist object
+#' @param save  Optional file path to save compiled results or load saved results
+#' @return List object with plot and results list
+#' @examples
+#' # Basic example with a fresh estimation
+#'allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),
+#'                      'fakeGroup', 1, c(`Base Case`='base_case',
+#'                                        `Upper Bound`='upper_bound'),
+#'                      runEstimation=TRUE)
+#'# Compute true prevalence and save results
+#'allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),
+#'                      'fakeGroup', 1, c(`Base Case`='base_case',
+#'                                        `Upper Bound`='upper_bound'),
+#'                      runEstimation=TRUE,
+#'                      prev=data.frame(`Group 1`=KCplwh$Total/2,
+#'                                      `Group 2`=KCplwh$Total/2,
+#'                                      Total=KCplwh$Total),
+#'                      save='testfile.csv')
+#'# Load the saved estimation and plot true prev results from it
+#'allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),
+#'                      'fakeGroup', 1, c(`Base Case`='base_case',
+#'                                        `Upper Bound`='upper_bound'),
+#'                      runEstimation=FALSE,
+#'                      savedEstimation=TRUE,
+#'                      save='testfile.csv')
+#'plotTruePrev(subset(allRes$results$trueprev, 
+#'                    Subgroup=='Total-stratified'))
+
+runAnalysis <- function(testhist, descriptives, 
+                        subvar, intLength, cases, 
+                        runEstimation=TRUE,
+                        savedEstimation=FALSE,
+                        prev=NULL, save=NULL) {
+
+    warning('runAnalysis is under development - needs unit testing and special cases for when no subgroup variable is desired, e.g. you want to analyze a single subgroup, like analyzing all KC MSM')
+
+    # Hardcode the subvar as subvar
+    testhist$subvar <- testhist[,subvar]
+    
+    # Diagnoses
+    dx <- vector('list')
+    dx$plot <- plotDiagnoses(testhist, showlegend=TRUE)
+
+    # Testing histories
+    sc <- ifelse(is.list(descriptives), FALSE, TRUE)
+    table <- tabTestHist(testhist, descriptives, 
+                         supercolumn=sc, fullsample_row=TRUE)
+    plot <- plotTestHist(testhist, panel=subvar)
+    th <- list(table=table, plot=plot)
+
+    # Inter-test intervals (infPeriod)
+    ### Overall summary
+    sum <- summary(testhist$infPeriod)
+    ### Mean window lengths by year
+    means <- c(by(testhist,testhist$yearDx,function(x)mean(x$infPeriod,na.rm=T)))
+    ### Test for time trend
+    trend <- oneway.test(infPeriod~yearDx,data=testhist)
+    infPeriod <- list(sum=sum, means=means, trend=trend)
+
+    # TID
+    separate <- sapply(levels(testhist$subvar),
+                   function(x) {
+                       estimateTID(testhist[testhist$subvar==x,'infPeriod'],
+                                   intLength)
+                   }, USE.NAMES=TRUE, simplify=FALSE)
+    combined <- vector('list')
+    for (i in 1:length(separate)) {
+        for (j in 1:length(separate[[1]])) combined[[i+j]] <- separate[[i]][[j]]
+    }
+    names(combined) <- paste(levels(testhist$subvar), 
+                             rep(names(separate[[1]]), length(separate)))
+    class(combined) <- append(class(combined), 'TID')
+    # For some reason, plot.TID doesn't work so I will not include the 
+    # combined object in the output
+    tid <- list(separate=separate)
+
+    # Results, new or saved
+    if (runEstimation) {
+        results <- runSubgroups(testhist, subvar, intLength, cases,
+                                prev, save)
+    } else if (savedEstimation) {
+        results <- list(trueprev=read.csv(gsub('.csv', '_trueprev.csv', save),
+                                          header=TRUE),
+                        results=list(resultsAll=read.csv(gsub('.csv', '_resultsAll.csv',
+                                                              save), header=TRUE)))
+        class(results$results) <- append(class(results$results), 'results')
+        colnames(results$trueprev)[which(colnames(results$trueprev)=='Diagnoses.Case')] <- 
+            'Diagnoses/Case'
+    } else results <- NULL
+
+    # Plots don't run for saved estimated, since those are compiled 
+    # Could code up mimicing the list structure of fresh back-calc results using the saved 
+    # results, and then the plots would run too
+    if (runEstimation) {
+        resultsPlots <- sapply(results, function(x) {
+                                   p <- plot(x$results)
+                                   return(p)
+                                }, USE.NAMES=TRUE, simplify=FALSE)
+    } else resultsPlots <- NULL
+    if (runEstimation & !is.null(prev)) {
+        resultsPrevPlots <- sapply(results, function(x) {
+                                   p <- plotTruePrev(x$trueprev)
+                                   return(p)
+                                }, USE.NAMES=TRUE, simplify=FALSE)
+    } else resultsPrevPlots <- NULL
+
+    return(list(dx=dx, th=th, infPeriod=infPeriod, tid=tid,
+           results=results, resultsPlots=resultsPlots, 
+           resultsPrevPlots=resultsPrevPlots))
+}
 

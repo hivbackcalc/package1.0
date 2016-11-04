@@ -7,7 +7,7 @@
 Overlays the backcalculated incidence on diagnoses in one panel and
 undiagnosed counts in another. Cases are indicated by colors.}
 \usage{
-\method{plot}{results}(x, panel = NULL)
+plot.results(x, panel = NULL)
 }
 \arguments{
 \item{x}{List of class "results", the output of combineResults()}
