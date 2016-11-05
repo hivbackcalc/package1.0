@@ -619,9 +619,15 @@ runAnalysis <- function(testhist, descriptives,
                    }, USE.NAMES=TRUE, simplify=FALSE)
     combined <- vector('list')
     for (i in 1:length(separate)) {
-        for (j in 1:length(separate[[1]])) combined[[i+j]] <- separate[[i]][[j]]
+        for (j in 1:length(separate[[1]])) {
+            index <- 2*i
+            if (j==1) index <- index-1
+            print(index)
+            combined[[index]] <- separate[[i]][[j]]
+        }
     }
-    names(combined) <- paste(levels(testhist$subvar), 
+    names(combined) <- 
+        paste(levels(testhist$subvar), 
                              rep(names(separate[[1]]), length(separate)))
     class(combined) <- append(class(combined), 'TID')
     # For some reason, plot.TID doesn't work so I will not include the 
