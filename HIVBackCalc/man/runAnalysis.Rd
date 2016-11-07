@@ -55,9 +55,11 @@ allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),
                      'fakeGroup', 1, c(`Base Case`='base_case',
                                        `Upper Bound`='upper_bound'),
                      runEstimation=TRUE,
-                     prev=data.frame(`Group 1`=KCplwh$Total/2,
+                     prev=data.frame(Year=2006:2012,
+                                     `Group 1`=KCplwh$Total/2,
                                      `Group 2`=KCplwh$Total/2,
-                                     Total=KCplwh$Total),
+                                     Total=KCplwh$Total,
+                                     check.names=FALSE),
                      save='testfile.csv')
 # Load the saved estimation and plot true prev results from it
 allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),

@@ -8,7 +8,7 @@ Plots the discrete probability and cumulative density functions
 from an object of class 'TID' produced by estimateTID(). Overlays
 the estimates from all assumptions/cases present in the object}
 \usage{
-plot.TID(x, intLength, cases = NULL, legendpos = NULL)
+\method{plot}{TID}(x, intLength, cases = NULL, legendpos = NULL)
 }
 \arguments{
 \item{x}{The TID object}

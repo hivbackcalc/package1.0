@@ -388,7 +388,18 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
       calcTruePrev(subResults[['Total-stratified']]$results,
                    prev=data.frame(Year=prev$Year,
                                    Total=apply(as.matrix(prev[,as.character(subgroups)]),
-                                               1,sum)))
+                                       1,sum)))
+    # Compile and save trueprev
+    trueprevAll <- 
+        do.call(rbind, lapply(names(subResults), 
+                               function(x) {
+                                 data.frame(Subgroup=x,
+                                            subResults[[x]]$trueprev,
+                                            check.names=FALSE)
+                                }))
+    subResults[['Total-stratified']]$trueprevAll <- 
+        trueprevAll[, !colnames(trueprevAll) %in% 
+                      c('1st Qu.', 'Median', '3rd Qu.')]
   }
   
   if (!is.null(save)) {
@@ -396,15 +407,7 @@ runSubgroups = function(testhist, subvar, intLength, cases=NULL,
                   file=gsub('.csv', '_resultsAll.csv', save),
                   row.names=FALSE)
         if (!is.null(prev)) {
-            # Compile and save trueprev
-            trueprev <- do.call(rbind, lapply(names(subResults), 
-                                       function(x) {
-                                         data.frame(Subgroup=x,
-                                                    subResults[[x]]$trueprev,
-                                                    check.names=FALSE)
-                                        }))
-            write.csv(trueprev[, !colnames(trueprev) %in% 
-                      c('1st Qu.', 'Median', '3rd Qu.')],
+            write.csv(subResults[['Total-stratified']]$trueprevAll,
                       file=gsub('.csv', '_trueprev.csv', save),
                       row.names=FALSE)
         }
@@ -566,9 +569,11 @@ plotTruePrev <- function(x) {
 #'                      'fakeGroup', 1, c(`Base Case`='base_case',
 #'                                        `Upper Bound`='upper_bound'),
 #'                      runEstimation=TRUE,
-#'                      prev=data.frame(`Group 1`=KCplwh$Total/2,
+#'                      prev=data.frame(Year=2006:2012,
+#'                                      `Group 1`=KCplwh$Total/2,
 #'                                      `Group 2`=KCplwh$Total/2,
-#'                                      Total=KCplwh$Total),
+#'                                      Total=KCplwh$Total,
+#'                                      check.names=FALSE),
 #'                      save='testfile.csv')
 #'# Load the saved estimation and plot true prev results from it
 #'allRes <- runAnalysis(KCsim, list(c(`Group`='fakeGroup', `Race`='race')),
@@ -622,7 +627,6 @@ runAnalysis <- function(testhist, descriptives,
         for (j in 1:length(separate[[1]])) {
             index <- 2*i
             if (j==1) index <- index-1
-            print(index)
             combined[[index]] <- separate[[i]][[j]]
         }
     }
@@ -638,15 +642,19 @@ runAnalysis <- function(testhist, descriptives,
     if (runEstimation) {
         results <- runSubgroups(testhist, subvar, intLength, cases,
                                 prev, save)
-    } else if (savedEstimation) {
-        results <- list(trueprev=read.csv(gsub('.csv', '_trueprev.csv', save),
-                                          header=TRUE),
-                        results=list(resultsAll=read.csv(gsub('.csv', '_resultsAll.csv',
-                                                              save), header=TRUE)))
-        class(results$results) <- append(class(results$results), 'results')
-        colnames(results$trueprev)[which(colnames(results$trueprev)=='Diagnoses.Case')] <- 
-            'Diagnoses/Case'
     } else results <- NULL
+    if (runEstimation) {
+        resultsCompiled <- list(trueprev=results[['Total-stratified']]$trueprevAll,
+                                results=results[['Total-stratified']]$results)
+    } else if (savedEstimation) {
+        resultsCompiled <- list(trueprev=read.csv(gsub('.csv', '_trueprev.csv', save), 
+                                                  header=TRUE), 
+                                results=list(resultsAll=read.csv(gsub('.csv', '_resultsAll.csv',
+                                                              save), header=TRUE)))
+        class(resultsCompiled$results) <- append(class(results$results), 'results')
+        colnames(resultsCompiled$trueprev)[which(colnames(resultsCompiled$trueprev)=='Diagnoses.Case')] <- 
+            'Diagnoses/Case'
+    } else resultsCompiled <- FALSE
 
     # Plots don't run for saved estimated, since those are compiled 
     # Could code up mimicing the list structure of fresh back-calc results using the saved 
@@ -665,7 +673,9 @@ runAnalysis <- function(testhist, descriptives,
     } else resultsPrevPlots <- NULL
 
     return(list(dx=dx, th=th, infPeriod=infPeriod, tid=tid,
-           results=results, resultsPlots=resultsPlots, 
+           results=results, 
+           resultsCompiled=resultsCompiled,
+           resultsPlots=resultsPlots, 
            resultsPrevPlots=resultsPrevPlots))
 }
 
