@@ -30,7 +30,9 @@ be used to label results.}
 
 \item{runEstimation}{Logical indicating whether to run a fresh back-calculation}
 
-\item{savedEstimation}{Logical indicating whether to load a saved back-calculation}
+\item{savedEstimation}{Logical indicating whether to load a saved back-calculation. 
+Both runEstimation and savedEstimation can be set to FALSE to return
+just descriptives and TID but no back-calculation}
 
 \item{prev}{Optional frame with 1st column 'Year' and a 2nd column with PLWHA
 for the population represented in the testhist object}

@@ -30,6 +30,52 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
     points(time,x$y[obs],col="red")
 }
 
+#' Summarize results by year
+#' 
+#' Summarize a resultsAll object created by combineResults into 
+#' yearly estimates
+#
+#' @param x a resultsAll data frame
+#' @param acrossYears Logical indicating whether to collapse across years
+#' @addclass Logical indicating whether to return x with an 
+#'      appended class of 'results'
+#' @return Original object with resultsSummary or resultsSummaryYear element 
+#' @examples
+#' 
+#' undx <- runBackCalc(KCsim, 1, cases=c(Base='base_case'))
+#' # Compare outputs - they're identical
+#' undx$results$resultsSummary
+#' compare <- sumResults(undx$results, acrossYears=TRUE, addclass=TRUE)
+#' compare$resultsSummary
+#' # Calculate true prev - need to have year strata
+#' compare <- sumResults(undx$results, acrossYears=FALSE, addclass=TRUE)
+#' trueprev <- calcTruePrev(compare, KCplwh[,c('Year', 'Total')])
+sumResults <- function(x, acrossYears=TRUE, addclass=FALSE) {
+
+    if (!'resultsAll'%in%names(x)) stop('x does not have a resultsAll object')
+    # Establish stratum
+    byvars <- c('var', 'group')
+    if (!acrossYears) {
+        byvars <- c(byvars, 'Year')
+        x$resultsAll$Year <- floor(x$resultsAll$time)
+    }
+    # Summarize
+    toreturn <- ddply(x$resultsAll, byvars, function(x) c(summary(x$value)))
+    toreturn <- within(toreturn,{
+        group <- as.character(group)
+        group[group=='Diagnoses and Incidence' &
+                var=='# Diagnosed'] <- 'Diagnoses'
+        group[group=='Diagnoses and Incidence'] <- 'Incidence'
+    })
+    colnames(toreturn)[1:2] <- c('Diagnoses/Case', 'Estimate')
+
+    if (acrossYears) x$resultsSummary <- toreturn else x$resultsSummaryYear <- toreturn
+
+    if (addclass) class(x) <- append(class(x), 'results')
+
+    return(x)
+}
+
 #' Create an object of class "results" that contains all results
 #'  
 #' Incidence and undiagnosed estimates for different cases are initially
@@ -81,27 +127,11 @@ combineResults <- function(x) {
   }
   
   # Data frame with summarized results
-  x$resultsSummary <- ddply(x$resultsAll, .(var, group), function(x) c(summary(x$value)))
-  x$resultsSummary <- within(x$resultsSummary, {
-    group <- as.character(group)
-    group[group=='Diagnoses and Incidence' &
-            var=='# Diagnosed'] <- 'Diagnoses'
-    group[group=='Diagnoses and Incidence'] <- 'Incidence'
-  })
-  colnames(x$resultsSummary)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  x <- sumResults(x, acrossYears=TRUE)
   
   # Data frame with summarized results by year
-  x$resultsSummaryYear <- ddply(transform(x$resultsAll, Year=floor(time)), 
-                            .(var, group, Year), function(x) c(summary(x$value)))
-  x$resultsSummaryYear <- within(x$resultsSummaryYear, {
-    group <- as.character(group)
-    group[group=='Diagnoses and Incidence' &
-            var=='# Diagnosed'] <- 'Diagnoses'
-    group[group=='Diagnoses and Incidence'] <- 'Incidence'
-  })
-  colnames(x$resultsSummaryYear)[1:2] <- c('Diagnoses/Case', 'Estimate')
+  x <- sumResults(x, acrossYears=FALSE, addclass=TRUE)
   
-  class(x) <- append(class(x), 'results')
   return(x)
 }
 
@@ -132,6 +162,8 @@ compileSubgroups <- function(x, includeTotal=FALSE) {
 #'  
 #' @param x List of class "results", the output of combineResults()
 #' @param panel Character variable name by which to panel the results
+#' @param valuevar Optional variable name that selects a different group than 
+#'          the one represented by the 'value' variable in x$resultsAll
 #'  
 #' @return Paneled ggplot2 object 
 #' @examples
@@ -139,11 +171,13 @@ compileSubgroups <- function(x, includeTotal=FALSE) {
 #'                          cases=c(`Base Case`='base_case'))
 #' # Right now there's a lot of nesting; you have to access the right element to 
 #' # get the plot
-#' plot(undx[[1]]$results)
+#' plot(undx[['Group 1']]$results)
+#' # Equivalent: plot Group 2 using the Total-stratified results
+#' plot(undx[['Total-stratified']]$results, valuevar='Group 1')
 #' # Panel
 #' all <- compileSubgroups(undx)
 #' plot(all, panel='Subgroup')
-plot.results <- function(x, panel=NULL) {
+plot.results <- function(x, panel=NULL, valuevar=NULL) {
 
     # Check that x is of class results
     if (!is.results(x)) stop('x is not of class results; look at x and make sure you have the right list element')
@@ -152,7 +186,13 @@ plot.results <- function(x, panel=NULL) {
     # Define the panel variable
     if (!is.null(panel)) {
         if (!panel%in%colnames(d)) stop('Panel variable not in data')
-        d$Group  <- d[,panel]
+        d$valuevar  <- d[,panel]
+    }
+    # Change the value variable if indicated
+    # ADD UNIT TEST
+    if (!is.null(valuevar)) {
+        if (!valuevar%in%names(d)) stop('valuevar variable is not in x$resultsAll')
+        d$value <- d[,valuevar]
     }
 
     p <- ggplot(d,aes(x=time,y=value, linetype=var))  +   
@@ -528,7 +568,6 @@ plotTruePrev <- function(x) {
         return(p)
 }
 
-
 ######################################################################
 # runAnalysis
 ######################################################################
@@ -553,7 +592,9 @@ plotTruePrev <- function(x) {
 #'        offers 'base_case' and 'upper_bound'. Names of vector elements will
 #'        be used to label results.
 #' @param runEstimation  Logical indicating whether to run a fresh back-calculation
-#' @param savedEstimation  Logical indicating whether to load a saved back-calculation
+#' @param savedEstimation  Logical indicating whether to load a saved back-calculation. 
+#'          Both runEstimation and savedEstimation can be set to FALSE to return
+#'          just descriptives and TID but no back-calculation
 #' @param prev  Optional frame with 1st column 'Year' and a 2nd column with PLWHA
 #'        for the population represented in the testhist object
 #' @param save  Optional file path to save compiled results or load saved results
@@ -648,9 +689,12 @@ runAnalysis <- function(testhist, descriptives,
                                 results=results[['Total-stratified']]$results)
     } else if (savedEstimation) {
         resultsCompiled <- list(trueprev=read.csv(gsub('.csv', '_trueprev.csv', save), 
-                                                  header=TRUE), 
-                                results=list(resultsAll=read.csv(gsub('.csv', '_resultsAll.csv',
-                                                              save), header=TRUE)))
+                                                  header=TRUE, check.names=FALSE), 
+                                results=list(resultsAll=read.csv(gsub('.csv', 
+                                                                      '_resultsAll.csv', 
+                                                                      save), 
+                                                                 header=TRUE,
+                                                                 check.names=FALSE)))
         class(resultsCompiled$results) <- append(class(results$results), 'results')
         colnames(resultsCompiled$trueprev)[which(colnames(resultsCompiled$trueprev)=='Diagnoses.Case')] <- 
             'Diagnoses/Case'
@@ -664,11 +708,29 @@ runAnalysis <- function(testhist, descriptives,
                                    p <- plot(x$results)
                                    return(p)
                                 }, USE.NAMES=TRUE, simplify=FALSE)
+    } else if (savedEstimation) {
+        subgroups <- colnames(resultsCompiled$results$resultsAll)
+        subgroups <- subgroups[!subgroups%in%c('time', 'group', 'var', 'value')]
+        resultsPlots <- sapply(c(subgroups,'Total-stratified'),
+                               function(x) {
+                                   if (x=='Total-stratified') var <- NULL else var <- x
+                                   p <- plot(resultsCompiled$results,
+                                             valuevar=var)
+                                   return(p)
+
+                               }, USE.NAMES=TRUE, simplify=FALSE)
     } else resultsPlots <- NULL
     if (runEstimation & !is.null(prev)) {
         resultsPrevPlots <- sapply(results, function(x) {
                                    p <- plotTruePrev(x$trueprev)
                                    return(p)
+                                }, USE.NAMES=TRUE, simplify=FALSE)
+    } else if (savedEstimation) {
+        resultsPrevPlots <- sapply(levels(resultsCompiled$trueprev$Subgroup),
+                                   function(x) {
+                                       p <- plotTruePrev(subset(resultsCompiled$trueprev,
+                                                                Subgroup==x))
+                                       return(p)
                                 }, USE.NAMES=TRUE, simplify=FALSE)
     } else resultsPrevPlots <- NULL
 
