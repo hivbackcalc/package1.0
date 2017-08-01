@@ -52,7 +52,16 @@ tabulateDiagnoses <- function(testhist, intLength, nPriorInt=100) {
 #' @return A list of class "backproj" containing the inputs as well as 
 #'          estimated incidence
 estimateIncidence <- function(y,pid,gamma=0,tol=10^-5,verbose=FALSE){
-  lambda <- rep(mean(y,na.rm=TRUE),length(y))
+  isna <- is.na(y)
+  lambda <- y
+  impute <- mean(y, na.rm = TRUE)
+  for(i in length(y):1){
+    if(!isna[i])
+      impute <- y[i]
+    else
+      lambda[i] <- impute
+  }
+  #lambda <- rep(mean(y,na.rm=TRUE),length(y))
   ll <- lambda
   dev <- Inf
   while(dev>tol){
