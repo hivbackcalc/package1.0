@@ -4,7 +4,23 @@
 \name{KCsim}
 \alias{KCsim}
 \title{MSM HIV testing histories approximating King County, WA in 2006-2012}
-\format{An object of class \code{data.frame} with 1522 rows and 15 columns.}
+\format{A data frame with 1522 rows and 15 columns:
+\describe {
+  \item{Population}{ID for the population}
+  \item{mode}{Mode of HIV transmission}
+  \item{mode2}{Mode of HIV transmission, intended to have only two values, MSM and non-MSM. In this simulated population, mode and mode2 are MSM for all diagnoses}
+  \item{race}{Race}
+  \item{hdx_age}{Age}
+  \item{agecat5}{5-year age group}
+  \item{yearDx}{Year of diagnosis}
+  \item{timeDx}{Quarter-year of diagnosis}
+  \item{everHadNegTest}{Logical indicating whether the individual ever had a negative test prior to diagnosis}
+  \item{infPeriod}{Time, in years, between last negative test and HIV diagnosis. For individuals with everHadNegTest as FALSE or never-testers, this is imputed as the minimum of age-16 and 17.98, a max allowed time elapsing between infection and diagnosis based on the age incubation distribution}
+  \item{infPeriod_imputeNA}{A version of infPeriod in which the missing values are imputed using the same rule stated above for the never-testers}
+  \item{fakeGroup}{A fake subgroup variable, useful for unit tests}
+  \item{everHadNegTestM}{A hypothetical everHadNegTest variable with 50\% of repeat testers, i.e. everHadNegTest as TRUE, turned into never-testers, i.e. everHadNegTest as FALSE}
+  \item{infPeriodM}{The corresponding infPeriod to everHadNegTestM, with the 50\% of hypothetical never-testers getting the min of age-16 or 17.98 assumption}
+}}
 \source{
 Simulation based on data from Public Health Seattle King County
 }
