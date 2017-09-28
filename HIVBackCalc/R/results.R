@@ -23,7 +23,7 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
     time <- as.numeric(names(x$y)[obs])
   else
     time <- seq(from=time[1],to=time[2],length.out=sum(obs))
-  plot(time,x$lambda[obs],ylim=c(0,100),type="l",
+  plot(time,x$lambda[obs],ylim=c(0,max(x$lambda[obs],x$y[obs])*1.1),type="l",
        main=paste("Estimated Incidence", case, sep="\n"),
        ylab="Count",...)
   if(showDiagCounts)
