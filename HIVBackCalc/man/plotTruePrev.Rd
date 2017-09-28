@@ -5,10 +5,13 @@
 \title{Function to combine yearly PLWHA prevalence with undiagnosed estimates to provide
 true prevalence estimates}
 \usage{
-plotTruePrev(x)
+plotTruePrev(x, revlevels = TRUE)
 }
 \arguments{
 \item{x}{Results of calcTruePrev}
+
+\item{revlevels}{If the colors of the bars look wrong, try setting to FALSE. The
+TRUE setting accommodates an change in factor ordering in newer ggplot versions}
 }
 \description{
 Function to combine yearly PLWHA prevalence with undiagnosed estimates to provide

@@ -23,7 +23,7 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
     time <- as.numeric(names(x$y)[obs])
   else
     time <- seq(from=time[1],to=time[2],length.out=sum(obs))
-  plot(time,x$lambda[obs],ylim=c(0,max(x$lambda[obs],x$y[obs])*1.1),type="l",
+  plot(time,x$lambda[obs],ylim=c(0,100),type="l",
        main=paste("Estimated Incidence", case, sep="\n"),
        ylab="Count",...)
   if(showDiagCounts)
@@ -37,8 +37,8 @@ plot.backproj <- function(x,time,showDiagCounts=TRUE, case="", ...){
 #
 #' @param x a resultsAll data frame
 #' @param acrossYears Logical indicating whether to collapse across years
-#' @addclass Logical indicating whether to return x with an 
-#'      appended class of 'results'
+#' @param addclass Logical indicating whether to return x with an 
+#'      appended class of "results"
 #' @return Original object with resultsSummary or resultsSummaryYear element 
 #' @examples
 #' 
@@ -521,6 +521,8 @@ calcTruePrev = function(x, prev) {
 #' Function to combine yearly PLWHA prevalence with undiagnosed estimates to provide
 #' true prevalence estimates
 #' @param x Results of calcTruePrev
+#' @param revlevels If the colors of the bars look wrong, try setting to FALSE. The
+#' TRUE setting accommodates an change in factor ordering in newer ggplot versions
 #' @examples
 #' # Right now it requires the results to have the Base Case and Upper Bound, 
 #' # named as shown below
@@ -528,7 +530,7 @@ calcTruePrev = function(x, prev) {
 #' trueprev <- calcTruePrev(undx$results, KCplwh[,c('Year', 'Total')])
 #' plotTruePrev(trueprev)
 
-plotTruePrev <- function(x) {
+plotTruePrev <- function(x, revlevels=TRUE) {
 
         # Not developed yet
         if (!'Base Case'%in%unique(x[['Diagnoses/Case']]) |
@@ -552,6 +554,12 @@ plotTruePrev <- function(x) {
         tp3 = ddply(tp3, .(Year, Case), transform, pos = (cumsum(Mean) - 0.5 * Mean))
         tp3$label = paste0(sprintf("%.0f", tp3$Percent), "%")
 
+        if (revlevels) {
+            tp3 <- transform(tp3, Estimate = factor(Estimate, 
+                                                    levels = rev(levels(Estimate)), 
+                                                    labels = rev(levels(Estimate))))
+            reverseit <- TRUE
+        } else reverseit <- FALSE
 
         p <- ggplot(tp3, aes(x = factor(Year), y = Mean, fill = Estimate)) +
            geom_bar(stat = "identity", width = .7) +
@@ -560,7 +568,8 @@ plotTruePrev <- function(x) {
                  facet_grid(.~Case) + theme_bw() + 
                  scale_x_discrete(name='') + 
                  scale_y_continuous(name='Number of Cases') + 
-                 scale_fill_manual(name='', values=c('#a8ddb5', '#43a2ca')) + 
+                 scale_fill_manual(name='', values=rev(c('#a8ddb5', '#43a2ca')),
+                                   guide=guide_legend(reverse=reverseit)) + 
                  theme_bw() + 
                  theme(legend.position='bottom') +
                  theme(axis.text = element_text(size = 10))

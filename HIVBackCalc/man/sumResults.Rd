@@ -10,6 +10,9 @@ sumResults(x, acrossYears = TRUE, addclass = FALSE)
 \item{x}{a resultsAll data frame}
 
 \item{acrossYears}{Logical indicating whether to collapse across years}
+
+\item{addclass}{Logical indicating whether to return x with an 
+appended class of "results"}
 }
 \value{
 Original object with resultsSummary or resultsSummaryYear element

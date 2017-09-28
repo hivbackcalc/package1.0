@@ -1,13 +1,12 @@
 Package: HIVBackCalc
 Type: Package
 Title: Back-calculation of undiagnosed HIV using testing histories
-Version: 1.031
+Version: 1.032
 Date: 2013-05-21
 Author: Ian Fellows & Jeanette Birnbaum
 Maintainer: Jeanette Birnbaum <kurian@uw.edu>
 Description: Back-calculates undiagnosed HIV based on HIV diagnoses and
-    testing histories. Version 1.031 features improved plotting and
-    documentation with examples.
+    testing histories. 
 URL: http://hivbackcalc.github.io
 Depends:
     rootSolve,
