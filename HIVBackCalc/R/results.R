@@ -642,9 +642,14 @@ runAnalysis <- function(testhist, descriptives,
                         prev=NULL, save=NULL) {
 
     warning('runAnalysis is under development - needs unit testing and special cases for when no subgroup variable is desired, e.g. you want to analyze a single subgroup, like analyzing all KC MSM')
+    if (length(cases)<2) warning('Not sure if runAnalysis will work for only one case')
 
     # Hardcode the subvar as subvar
     testhist$subvar <- testhist[,subvar]
+    if (!is.factor(testhist$subvar)) {
+        warning('In runAnalysis(), converting subvar to factor')
+        testhist$subvar <- as.factor(testhist$subvar)
+    }
     
     # Diagnoses
     dx <- vector('list')
