@@ -12,31 +12,31 @@
 aggregateDiagnoses <- function(timeDx, intLength) {
 
     # Don't allow irregular time steps
-    if (!intLength%in%c(0.25,0.5,1)) stop('Error in tabulateDiagnoses:
-                                          intLength must be 0.25, 0.5 or 1')
+    if (!intLength%in%c(1/12, 0.25,0.5,1)) stop('Error in tabulateDiagnoses:
+                                          intLength must be 1/12, 0.25, 0.5 or 1')
 
 
+    
     # Check that intLength is >= time steps in timeDx
     times <- sort(unique(timeDx))
-    tstep <- median(times[2:length(times)]-times[1:(length(times)-1)])
-    if (intLength<tstep) stop('Error in tabulateDiagnoses: intLength is smaller
+    diffs <- diff(times)
+    tstep <- median(diffs)
+    check <- round(intLength-tstep, 4)
+    if (check<0) stop('Error in tabulateDiagnoses: intLength is smaller
                               than median interval between diagnosis counts
                               in variable timeDx')
+    
+    # Note the year
+    floored <- floor(timeDx)
 
-    # Aggregate diagnoses if necessary
-    if (intLength==tstep) {
+    # Either leave timeDx alone, or aggregate to the desired intLength
+    if (abs(check)<.0001) {
         timeDxNew <- timeDx
-    } else {
-        floored <- floor(timeDx)
-        if (intLength==1) {
-            timeDxNew <- floored
-        } else if (intLength==0.5) {
-            decimals <- timeDx-floored
-            decimals[decimals==0.25] <- 0
-            decimals[decimals==0.75] <- 0.5
-            timeDxNew <- floored+decimals
-        }
-    }
+    } else if (intLength %in% c(0.25, 0.5, 1)) {
+        warning('\n Because intLength=', intLength, ', aggregating diagnosis times to ', intLength, '-years')
+        decimals <- timeDx-floored
+        timeDxNew <- floored + floor(decimals/intLength)*intLength 
+    } else stop('Error in aggregateDiagnoses(): timeDx and/or intLength incorrectly specified')
 
     return(timeDxNew)
 }

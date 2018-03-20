@@ -124,7 +124,6 @@ meanEmUpdate <- function(y,pid,lambda,gamma=0){
       off[2:(T-1)] <- 2*gamma
       rbind(-off,diag,off)
     }
-    # browser()
     lamNew <- multiroot(f=f,start=lambda,positive=TRUE,jacfunc=j,jactype="bandint")$root
   }else{
     lamNew <- lambda * (a + c / b)
