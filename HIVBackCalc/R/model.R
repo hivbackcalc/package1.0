@@ -8,12 +8,39 @@
 #' @param testhist Object of class 'testinghistories' containing the 
 #'          time of diagnosis within "timeDx"
 #' @param intLength Interval length by which diagnoses are tracked;
-#'          1=1 year.
+#'          allowed values are 1=1 year, 0.5=half year, 0.25=quarter year,
+#'          or 1/12=1 month. Do not specify 1 month as 0.083, but use 1/12.
 #' @param nPriorInt Number of incidence intervals to backproject
 #'          prior to earliest observed diagnoses. Use NULL to skip
-#'          this and simply return observed diagnosis counts.
+#'          this and simply return observed diagnosis counts. Use the default
+#'          to prepare the data for use with estimateIncidence()
 #'  
 #' @return Vector of NA's plus diagnosis counts
+#' @examples
+#' # Create KCsimM which has (fake) time steps of months, i.e. 1/12ths in years,
+#' # with duplicate rows to get more diagnoses per time step
+#' data(KCsim)
+#' KCsimM <- rbind(KCsim, KCsim, KCsim, KCsim)
+#' KCsimM <- transform(KCsimM, timeDx=yearDx +
+#'                    sample((1:10)*(1/12), 
+#'                           size=nrow(KCsimM), replace=TRUE))
+#' 
+#' # Monthly time steps
+#' diagCountsM = tabulateDiagnoses(KCsimM, intLength=1/12)
+#' # Yearly time steps: the function will aggregate for you
+#' diagCounts = tabulateDiagnoses(KCsimM, intLength=1)
+#' 
+#' # Note that there are too many months with zero counts for 
+#' # estimateIncidence() to work. Only if we replace the zero counts
+#' # will the estimation run. This demonstrates the value of aggregating
+#' # up to larger time steps.
+#' diagCountsM[diagCountsM<1] <- 80 # Not good practice, for demonstration only
+#' TIDsM <- estimateTID(KCsimM$infPeriod, intLength=1/12)
+#' incidenceBaseM = estimateIncidence(y=diagCountsM, 
+#'                                   pid=TIDsM[['base_case']]$pdffxn, 
+#'                                   gamma=0.1, 
+#'                                   verbose=TRUE)
+
 tabulateDiagnoses <- function(testhist, intLength, nPriorInt=100) {
 
     # Aggregate diagnoses if necessary
@@ -124,6 +151,7 @@ meanEmUpdate <- function(y,pid,lambda,gamma=0){
       off[2:(T-1)] <- 2*gamma
       rbind(-off,diag,off)
     }
+    # browser()
     lamNew <- multiroot(f=f,start=lambda,positive=TRUE,jacfunc=j,jactype="bandint")$root
   }else{
     lamNew <- lambda * (a + c / b)

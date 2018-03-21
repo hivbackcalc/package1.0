@@ -2,13 +2,17 @@
 #' Aggregates diagnosis counts into the specified time interval
 #'  
 #' HIV diagnosis counts from timeDx are aggregated to match 
-#' the specified intLength
+#' the specified intLength. Called by tabulateDiagnoses()
 #'  
-#' @param timeDx Time of diagnosis from the testhist data
-#' @param intLength Desired interval length for diagnoses:
+#' @param timeDx Time of diagnosis from the testhist data. 
+#'        Form should be either YYYY+x/12 where x is the month number, YYYY.25,
+#'        YYYY.5, or YYYY. 
+#' @param intLength Desired interval length for diagnoses: 1/12, 
 #'        0.25, 0.5 or 1 (1=1 year)
 #'  
 #' @return timeDx variable with intLength 
+#' @seealso \code{\link{tabulateDiagnoses}} for example
+
 aggregateDiagnoses <- function(timeDx, intLength) {
 
     # Don't allow irregular time steps

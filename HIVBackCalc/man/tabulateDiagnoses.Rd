@@ -15,11 +15,13 @@ tabulateDiagnoses(testhist, intLength, nPriorInt = 100)
 time of diagnosis within "timeDx"}
 
 \item{intLength}{Interval length by which diagnoses are tracked;
-1=1 year.}
+allowed values are 1=1 year, 0.5=half year, 0.25=quarter year,
+or 1/12=1 month. Do not specify 1 month as 0.083, but use 1/12.}
 
 \item{nPriorInt}{Number of incidence intervals to backproject
 prior to earliest observed diagnoses. Use NULL to skip
-this and simply return observed diagnosis counts.}
+this and simply return observed diagnosis counts. Use the default
+to prepare the data for use with estimateIncidence()}
 }
 \value{
 Vector of NA's plus diagnosis counts
@@ -30,5 +32,30 @@ Tabulates HIV diagnoses by interval, as input for estimateIncidence().
 HIV diagnosis counts for every interval within the calendar time period
 of the data are appended to empty intervals that will indicate to 
 estimateIncidence() how far back to project incidence counts.
+}
+\examples{
+# Create KCsimM which has (fake) time steps of months, i.e. 1/12ths in years,
+# with duplicate rows to get more diagnoses per time step
+data(KCsim)
+KCsimM <- rbind(KCsim, KCsim, KCsim, KCsim)
+KCsimM <- transform(KCsimM, timeDx=yearDx +
+                   sample((1:10)*(1/12), 
+                          size=nrow(KCsimM), replace=TRUE))
+
+# Monthly time steps
+diagCountsM = tabulateDiagnoses(KCsimM, intLength=1/12)
+# Yearly time steps: the function will aggregate for you
+diagCounts = tabulateDiagnoses(KCsimM, intLength=1)
+
+# Note that there are too many months with zero counts for 
+# estimateIncidence() to work. Only if we replace the zero counts
+# will the estimation run. This demonstrates the value of aggregating
+# up to larger time steps.
+diagCountsM[diagCountsM<1] <- 80 # Not good practice, for demonstration only
+TIDsM <- estimateTID(KCsimM$infPeriod, intLength=1/12)
+incidenceBaseM = estimateIncidence(y=diagCountsM, 
+                                  pid=TIDsM[['base_case']]$pdffxn, 
+                                  gamma=0.1, 
+                                  verbose=TRUE)
 }
 

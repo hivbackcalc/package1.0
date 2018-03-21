@@ -5,14 +5,16 @@
 \title{Aggregates diagnosis counts into the specified time interval
  
 HIV diagnosis counts from timeDx are aggregated to match 
-the specified intLength}
+the specified intLength. Called by tabulateDiagnoses()}
 \usage{
 aggregateDiagnoses(timeDx, intLength)
 }
 \arguments{
-\item{timeDx}{Time of diagnosis from the testhist data}
+\item{timeDx}{Time of diagnosis from the testhist data. 
+Form should be either YYYY+x/12 where x is the month number, YYYY.25,
+YYYY.5, or YYYY.}
 
-\item{intLength}{Desired interval length for diagnoses:
+\item{intLength}{Desired interval length for diagnoses: 1/12, 
 0.25, 0.5 or 1 (1=1 year)}
 }
 \value{
@@ -22,6 +24,9 @@ timeDx variable with intLength
 Aggregates diagnosis counts into the specified time interval
  
 HIV diagnosis counts from timeDx are aggregated to match 
-the specified intLength
+the specified intLength. Called by tabulateDiagnoses()
+}
+\seealso{
+\code{\link{tabulateDiagnoses}} for example
 }
 
