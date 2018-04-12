@@ -125,7 +125,15 @@ meanEmUpdate <- function(y,pid,lambda,gamma=0){
       rbind(-off,diag,off)
     }
     # browser()
-    lamNew <- multiroot(f=f,start=lambda,positive=TRUE,jacfunc=j,jactype="bandint")$root
+    opt <- multiroot(f=f,start=lambda,positive=TRUE,jacfunc=j,jactype="bandint")
+    lamNew <- opt$root
+    if(!is.finite(sum(opt$f.root))){
+      opt <- stats::optim(pmax(1e-10, lambda), fn = function(x) sum(f(x)^2), method="L-BFGS-B", lower=1e-10)
+      if(inherits(t, "try-error")) browser()
+      lamNew <- opt$par
+      if(!opt$convergence != 1)
+        warning("EM Update failed to converge")
+    }
   }else{
     lamNew <- lambda * (a + c / b)
   }
