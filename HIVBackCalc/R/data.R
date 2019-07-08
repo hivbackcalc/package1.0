@@ -19,7 +19,7 @@ aggregateDiagnoses <- function(timeDx, intLength) {
     # Check that intLength is >= time steps in timeDx
     times <- sort(unique(timeDx))
     tstep <- median(times[2:length(times)]-times[1:(length(times)-1)])
-    if (intLength<tstep) stop('Error in tabulateDiagnoses: intLength is smaller
+    if (intLength<tstep) warning('Error in tabulateDiagnoses: intLength is smaller
                               than median interval between diagnosis counts
                               in variable timeDx')
 
